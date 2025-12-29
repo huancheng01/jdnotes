@@ -182,7 +182,8 @@ export function Editor({
     },
     onUpdate: ({ editor }) => {
       if (!diffState.isActive) {
-        onContentChange(editor.getHTML())
+        // 以 Markdown 格式保存
+        onContentChange(editor.storage.markdown.getMarkdown())
       }
     },
     onCreate: ({ editor }) => {
@@ -323,9 +324,9 @@ export function Editor({
     // 插入内容
     editor.chain().focus().insertContent(diffState.generatedText).run()
 
-    // 立即更新 content 状态，防止被旧内容覆盖
-    const newHTML = editor.getHTML()
-    onContentChange(newHTML)
+    // 立即更新 content 状态，防止被旧内容覆盖（以 Markdown 格式保存）
+    const newContent = editor.storage.markdown.getMarkdown()
+    onContentChange(newContent)
 
     // 重置状态
     resetDiffState()
@@ -354,9 +355,9 @@ export function Editor({
         editor.chain().focus().insertContent(diffState.originalText).run()
       }
 
-      // 立即更新 content 状态
-      const newHTML = editor.getHTML()
-      onContentChange(newHTML)
+      // 立即更新 content 状态（以 Markdown 格式保存）
+      const newContent = editor.storage.markdown.getMarkdown()
+      onContentChange(newContent)
     }
 
     resetDiffState()
@@ -397,8 +398,8 @@ export function Editor({
     // 插入两个换行符和内容
     editor.commands.insertContent('\n\n' + contentToInsert)
 
-    // 更新内容
-    const newContent = editor.getHTML()
+    // 更新内容（以 Markdown 格式保存）
+    const newContent = editor.storage.markdown.getMarkdown()
     onContentChange(newContent)
 
     // 通知插入完成
@@ -575,10 +576,9 @@ export function Editor({
                 : formatDateTime(updatedAt)}
             </span>
           </div>
-          <div
-            className="mt-6 prose prose-slate dark:prose-invert prose-lg"
-            dangerouslySetInnerHTML={{ __html: content }}
-          />
+          <div className="mt-6 prose prose-slate dark:prose-invert prose-lg whitespace-pre-wrap">
+            {content}
+          </div>
         </div>
       </div>
     )

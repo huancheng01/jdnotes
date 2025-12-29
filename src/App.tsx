@@ -81,9 +81,18 @@ function SidebarItem({
   )
 }
 
-// 从 HTML 内容提取纯文本预览
-function extractPreview(html: string): string {
-  const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+// 从 Markdown 内容提取纯文本预览
+function extractPreview(markdown: string): string {
+  const text = markdown
+    .replace(/#{1,6}\s/g, '') // 移除标题标记
+    .replace(/\*\*|__/g, '') // 移除粗体
+    .replace(/\*|_/g, '') // 移除斜体
+    .replace(/`{1,3}[^`]*`{1,3}/g, '') // 移除代码
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // 链接只保留文本
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '') // 移除图片
+    .replace(/\n+/g, ' ') // 换行转空格
+    .replace(/\s+/g, ' ')
+    .trim()
   return text.slice(0, 80) + (text.length > 80 ? '...' : '')
 }
 
