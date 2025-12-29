@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   Inbox,
@@ -15,6 +15,7 @@ import {
   Moon,
   Sun,
   Settings,
+  Sparkles,
 } from 'lucide-react'
 import { Editor } from './Editor'
 import { db, noteOperations, initializeDefaultNotes, type Note } from './db'
@@ -23,6 +24,7 @@ import { CommandMenu } from './CommandMenu'
 import { TagsInput } from './TagsInput'
 import { ThemeProvider, useTheme } from './ThemeContext'
 import { SettingsModal } from './SettingsModal'
+import { AIChatSidebar } from './AIChatSidebar'
 
 // 视图类型
 type ViewType = 'inbox' | 'favorites' | 'trash' | `tag-${string}`
@@ -246,9 +248,28 @@ function App() {
   const [localContent, setLocalContent] = useState('')
   const [currentView, setCurrentView] = useState<ViewType>('inbox')
   const [showSettings, setShowSettings] = useState(false)
+  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [contentToInsert, setContentToInsert] = useState<string | null>(null)
 
   // 追踪已知存在的笔记 ID（用于区分新建和删除）
   const knownNoteIdsRef = useRef<Set<number>>(new Set())
+
+  // 切换 AI 聊天侧栏
+  const toggleChat = useCallback(() => {
+    setIsChatOpen((prev) => !prev)
+  }, [])
+
+  // Cmd/Ctrl + J 快捷键切换侧栏
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+        e.preventDefault()
+        toggleChat()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [toggleChat])
 
   // 初始化默认数据
   useEffect(() => {
@@ -433,6 +454,18 @@ function App() {
       await noteOperations.updateTags(activeNoteId, tags)
     }
   }
+
+  // 插入内容到笔记
+  const handleInsertToNote = useCallback((content: string) => {
+    setContentToInsert(content)
+    // 切换到编辑模式以便插入内容
+    setIsEditing(true)
+  }, [])
+
+  // 插入完成后清除状态
+  const handleContentInserted = useCallback(() => {
+    setContentToInsert(null)
+  }, [])
 
   // 从命令面板选择笔记
   const handleCommandSelectNote = (id: number) => {
@@ -619,7 +652,8 @@ function App() {
         </div>
       </div>
 
-      {/* 右侧编辑器 */}
+      {/* 右侧编辑器 + AI 侧栏 */}
+      <div className="flex-1 flex h-full overflow-hidden">
       <main className="flex-1 bg-white dark:bg-dark-bg h-full overflow-hidden flex flex-col transition-colors duration-300">
         {activeNoteId !== null ? (
           <>
@@ -664,6 +698,18 @@ function App() {
                     <PenLine className="h-4 w-4" />
                   )}
                 </button>
+                {/* AI 助手按钮 */}
+                <button
+                  onClick={toggleChat}
+                  className={`p-1.5 rounded-md transition-colors duration-200 ${
+                    isChatOpen
+                      ? 'text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
+                      : 'text-gray-400 hover:text-indigo-500 hover:bg-gray-100 dark:hover:bg-white/10'
+                  }`}
+                  title="AI 助手 (⌘J)"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </button>
               </div>
             </div>
 
@@ -681,17 +727,32 @@ function App() {
               key={`editor-${activeNoteId}`}
               title={localTitle}
               content={localContent}
+              tags={activeNote?.tags ?? []}
               isEditing={isEditing}
               createdAt={activeNote?.createdAt ?? new Date()}
               updatedAt={activeNote?.updatedAt ?? new Date()}
               onTitleChange={handleTitleChange}
               onContentChange={handleContentChange}
+              onTagsChange={handleTagsChange}
+              contentToInsert={contentToInsert}
+              onContentInserted={handleContentInserted}
             />
           </>
         ) : (
           <EmptyState onCreateNote={handleCreateNote} />
         )}
       </main>
+
+      {/* AI 聊天侧栏 */}
+      <AIChatSidebar
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        noteId={activeNoteId}
+        noteTitle={localTitle}
+        noteContent={localContent}
+        onInsertToNote={handleInsertToNote}
+      />
+      </div>
       </div>
     </>
   )

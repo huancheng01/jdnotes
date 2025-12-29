@@ -12,9 +12,19 @@ export interface Note {
   updatedAt: Date
 }
 
+// 聊天消息数据类型
+export interface ChatMessage {
+  id: number
+  noteId: number
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+}
+
 // 数据库类
 class NoteAppDB extends Dexie {
   notes!: EntityTable<Note, 'id'>
+  chatMessages!: EntityTable<ChatMessage, 'id'>
 
   constructor() {
     super('NoteAppDB')
@@ -53,6 +63,12 @@ class NoteAppDB extends Dexie {
             note.tags = []
           })
       })
+
+    // 版本 4：添加 chatMessages 表
+    this.version(4).stores({
+      notes: '++id, title, *tags, isFavorite, isDeleted, createdAt, updatedAt',
+      chatMessages: '++id, noteId, timestamp',
+    })
   }
 }
 
@@ -79,11 +95,11 @@ export async function initializeDefaultNotes() {
 
 ## 功能特性
 
-- 富文本编辑
-- 代码块语法高亮
-- 自动保存
-- 本地持久化存储
-- AI 智能助手（右键菜单）
+- 富文本编辑，支持 Markdown 语法
+- 代码块语法高亮，支持运行 Shell 命令
+- 自动保存，本地持久化存储
+- AI 智能助手（右键菜单 + 侧栏对话）
+- 斜杠命令快速调用 AI 模板
 
 开始创建你的第一个笔记吧！`,
         tags: ['入门'],
@@ -103,12 +119,21 @@ export async function initializeDefaultNotes() {
 ## 通用快捷键
 
 - \`Ctrl+K\` - 搜索笔记
+- \`Ctrl+J\` - 打开/关闭 AI 助手侧栏
 
 ## AI 功能
 
-在编辑器中右键即可呼出 AI 助手菜单：
-- **选中文本**：改进写作、总结摘要、中英互译
-- **任意位置**：AI 续写、自由提问`,
+**右键菜单**：在编辑器中右键即可呼出 AI 助手菜单
+- 选中文本：改进写作、总结摘要、中英互译
+- 任意位置：AI 续写、自由提问
+
+**斜杠命令**：输入 \`/\` 触发快捷模板
+- AI 续写 - 根据上文继续写作
+- 会议纪要 - 生成结构化会议模板
+- 脑暴大纲 - 生成 5 点思维大纲
+- 代码实现 - 根据描述生成代码
+
+**AI 侧栏**：按 \`Ctrl+J\` 打开，可与 AI 自由对话，AI 会自动获取当前笔记上下文`,
         tags: ['入门', '快捷键'],
         isFavorite: 0,
         isDeleted: 0,
@@ -201,5 +226,50 @@ export const noteOperations = {
       note.tags?.forEach((tag) => tagSet.add(tag))
     })
     return Array.from(tagSet).sort()
+  },
+}
+
+// 聊天消息操作函数
+export const chatOperations = {
+  // 添加消息
+  async add(noteId: number, role: 'user' | 'assistant', content: string): Promise<number> {
+    return await db.chatMessages.add({
+      noteId,
+      role,
+      content,
+      timestamp: new Date(),
+    })
+  },
+
+  // 获取笔记的所有消息
+  async getByNoteId(noteId: number): Promise<ChatMessage[]> {
+    return await db.chatMessages
+      .where('noteId')
+      .equals(noteId)
+      .sortBy('timestamp')
+  },
+
+  // 更新消息内容
+  async update(id: number, content: string): Promise<void> {
+    await db.chatMessages.update(id, { content })
+  },
+
+  // 删除单条消息
+  async delete(id: number): Promise<void> {
+    await db.chatMessages.delete(id)
+  },
+
+  // 删除某条消息之后的所有消息
+  async deleteAfter(noteId: number, timestamp: Date): Promise<void> {
+    await db.chatMessages
+      .where('noteId')
+      .equals(noteId)
+      .filter((msg) => msg.timestamp > timestamp)
+      .delete()
+  },
+
+  // 清空笔记的所有消息
+  async clearByNoteId(noteId: number): Promise<void> {
+    await db.chatMessages.where('noteId').equals(noteId).delete()
   },
 }

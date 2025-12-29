@@ -102,3 +102,286 @@ body {
   background-color: #1E2025;
   color: rgb(243 244 246);
 }
+
+/* AI 生成进度条 */
+@keyframes ai-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.ai-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #6366f1, transparent);
+  animation: ai-progress 1.5s ease-in-out infinite;
+}
+
+/* AI 生成内容的高亮样式 */
+.ai-generating {
+  background-color: rgba(99, 102, 241, 0.1);
+  border-left: 2px solid #6366f1;
+  padding-left: 0.5rem;
+  margin-left: -0.5rem;
+  border-radius: 0.25rem;
+}
+
+.dark .ai-generating {
+  background-color: rgba(99, 102, 241, 0.15);
+}
+
+/* AI 内容淡入动画 */
+@keyframes ai-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ai-fade-in {
+  animation: ai-fade-in 0.3s ease-out forwards;
+}
+
+/* AI 菜单动画 */
+.ai-context-menu {
+  animation: ai-menu-appear 0.15s ease-out;
+}
+
+@keyframes ai-menu-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ===== AI Ghost Writing 样式 (Linear-grade) ===== */
+
+/* 原文样式 - 灰色半透明 */
+.ai-ghost-original {
+  color: #9ca3af;
+  opacity: 0.5;
+  text-decoration: line-through;
+  text-decoration-color: rgba(156, 163, 175, 0.3);
+}
+
+.dark .ai-ghost-original {
+  color: #6b7280;
+}
+
+/* AI 生成文本样式 - 靛蓝色 */
+.ai-ghost-text {
+  color: #4f46e5;
+  animation: ai-ghost-fade-in 0.2s ease-out;
+}
+
+.dark .ai-ghost-text {
+  color: #818cf8;
+}
+
+/* AI 生成文本内的所有元素继承颜色 */
+.ai-ghost-text * {
+  color: inherit !important;
+}
+
+@keyframes ai-ghost-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Sparkle 加载动画 */
+.ai-sparkle {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  animation: ai-sparkle-pulse 1s ease-in-out infinite;
+}
+
+@keyframes ai-sparkle-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+}
+
+/* 流式光标 - 更细腻的闪烁 */
+.ai-streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: #6366f1;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: ai-cursor-blink 0.6s ease-in-out infinite;
+  border-radius: 1px;
+}
+
+.dark .ai-streaming-cursor {
+  background: #818cf8;
+}
+
+@keyframes ai-cursor-blink {
+  0%, 40% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+/* Linear 风格审查工具栏 */
+.ai-review-toolbar {
+  animation: ai-toolbar-appear 0.15s ease-out;
+}
+
+@keyframes ai-toolbar-appear {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* AI Ghost 容器 */
+.ai-ghost-container {
+  position: relative;
+  margin: 0.5rem 0;
+}
+
+/* ===== AI Chat Sidebar 样式 ===== */
+
+/* 侧栏滑入动画 */
+.ai-chat-sidebar {
+  animation: ai-sidebar-slide-in 0.2s ease-out;
+}
+
+@keyframes ai-sidebar-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 消息样式 */
+.ai-chat-message {
+  line-height: 1.5;
+}
+
+.ai-chat-message p {
+  margin: 0;
+}
+
+.ai-chat-message p + p {
+  margin-top: 0.5rem;
+}
+
+.ai-chat-message code {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.15rem 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+}
+
+.dark .ai-chat-message code {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.ai-chat-message pre {
+  background-color: #1e1e1e;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.ai-chat-message pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.8em;
+  color: #e5e7eb;
+}
+
+.ai-chat-message ul,
+.ai-chat-message ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.ai-chat-message li {
+  margin: 0.25rem 0;
+}
+
+.ai-chat-message h1,
+.ai-chat-message h2,
+.ai-chat-message h3 {
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.ai-chat-message h1 {
+  font-size: 1.1em;
+}
+
+.ai-chat-message h2 {
+  font-size: 1em;
+}
+
+.ai-chat-message h3 {
+  font-size: 0.95em;
+}
+
+.ai-chat-message blockquote {
+  border-left: 2px solid #6366f1;
+  padding-left: 0.75rem;
+  margin: 0.5rem 0;
+  color: #6b7280;
+}
+
+.dark .ai-chat-message blockquote {
+  color: #9ca3af;
+}
+
+/* 编辑消息过渡动画 */
+.edit-message-container {
+  animation: edit-fade-in 0.15s ease-out;
+}
+
+@keyframes edit-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
