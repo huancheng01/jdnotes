@@ -252,12 +252,12 @@ export function AIChatSidebar({ isOpen, onClose, noteId, noteTitle, noteContent,
   }
 
   return (
-    <div className="w-[350px] bg-gray-50 dark:bg-[#16181D] border-l border-gray-200 dark:border-gray-800 flex flex-col h-full ai-chat-sidebar">
+    <div className="w-[350px] ai-sidebar-glass border-l border-black/[0.03] dark:border-white/[0.06] flex flex-col h-full ai-chat-sidebar">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.03] dark:border-white/[0.06]">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-indigo-500" />
-          <span className="text-[14px] font-medium text-gray-900 dark:text-gray-100">
+          <Sparkles className="h-4 w-4 text-[#5E6AD2]" strokeWidth={1.5} />
+          <span className="text-[14px] font-medium text-slate-900 dark:text-slate-100 tracking-tight">
             AI 助手
           </span>
         </div>
@@ -265,23 +265,23 @@ export function AIChatSidebar({ isOpen, onClose, noteId, noteTitle, noteContent,
           {((messages && messages.length > 0) || pendingUserMessage) && (
             <button
               onClick={handleClear}
-              className="px-2 py-1 text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              className="px-2 py-1 text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.06] rounded-md transition-colors"
             >
               清空
             </button>
           )}
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.06] transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" strokeWidth={1.5} />
           </button>
         </div>
       </div>
 
       {/* Context Indicator */}
-      <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800">
-        <p className="text-[10px] text-gray-400 dark:text-gray-500">
+      <div className="px-4 py-2 border-b border-black/[0.03] dark:border-white/[0.06]">
+        <p className="text-[10px] text-slate-400 dark:text-slate-500">
           正在阅读笔记：{noteTitle || '无标题'}
         </p>
       </div>
@@ -290,11 +290,11 @@ export function AIChatSidebar({ isOpen, onClose, noteId, noteTitle, noteContent,
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {displayMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <Sparkles className="h-8 w-8 text-gray-300 dark:text-gray-600 mb-3" />
-            <p className="text-[13px] text-gray-400 dark:text-gray-500">
+            <Sparkles className="h-8 w-8 text-slate-300 dark:text-slate-600 mb-3" strokeWidth={1} />
+            <p className="text-[13px] text-slate-400 dark:text-slate-500">
               有什么可以帮你的？
             </p>
-            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
               我可以帮你分析笔记内容、回答问题
             </p>
           </div>
@@ -324,9 +324,9 @@ export function AIChatSidebar({ isOpen, onClose, noteId, noteTitle, noteContent,
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-        <div className="flex items-end gap-2 bg-white dark:bg-[#1E2025] rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+      {/* Input Area - 浮动药丸 */}
+      <div className="p-4">
+        <div className="input-pill flex items-end gap-2 px-4 py-3 border border-black/[0.03] dark:border-white/[0.06]">
           <textarea
             ref={textareaRef}
             value={input}
@@ -337,26 +337,26 @@ export function AIChatSidebar({ isOpen, onClose, noteId, noteTitle, noteContent,
             onKeyDown={handleKeyDown}
             placeholder="输入消息..."
             rows={1}
-            className="flex-1 bg-transparent border-none outline-none resize-none text-[13px] text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500"
+            className="flex-1 bg-transparent border-none outline-none resize-none text-[13px] text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
             style={{ maxHeight: '150px' }}
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isStreaming}
-            className={`p-1.5 rounded-md transition-colors ${
+            className={`p-1.5 rounded-lg transition-colors ${
               input.trim() && !isStreaming
-                ? 'text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'
-                : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                ? 'text-[#5E6AD2] hover:bg-[#5E6AD2]/10'
+                : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
             }`}
           >
             {isStreaming ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4" strokeWidth={1.5} />
             )}
           </button>
         </div>
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 text-center">
+        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 text-center">
           Shift + Enter 换行 · Enter 发送
         </p>
       </div>

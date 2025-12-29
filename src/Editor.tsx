@@ -177,7 +177,7 @@ export function Editor({
     editorProps: {
       attributes: {
         class:
-          'prose prose-gray dark:prose-invert prose-lg max-w-none focus:outline-none min-h-[300px]',
+          'prose prose-slate dark:prose-invert prose-lg max-w-none focus:outline-none min-h-[300px]',
       },
     },
     onUpdate: ({ editor }) => {
@@ -561,11 +561,11 @@ export function Editor({
   if (!editor) {
     return (
       <div className="flex-1 h-full overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-12 py-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+        <div className="px-12 py-8">
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
             {title || '无标题'}
           </h1>
-          <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 font-medium mt-2 mb-4">
+          <div className="flex items-center gap-2 text-xs text-slate-400 font-medium mt-2 mb-4">
             <span>创建于 {formatDateTime(createdAt)}</span>
             <span>•</span>
             <span>
@@ -576,7 +576,7 @@ export function Editor({
             </span>
           </div>
           <div
-            className="mt-6 prose prose-gray dark:prose-invert prose-lg"
+            className="mt-6 prose prose-slate dark:prose-invert prose-lg"
             dangerouslySetInnerHTML={{ __html: content }}
           />
         </div>
@@ -586,7 +586,7 @@ export function Editor({
 
   return (
     <div className="flex-1 h-full overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-12 py-8">
+      <div className="px-12 py-8">
         {/* 标题区域 */}
         <div className="relative flex items-start gap-2">
           <div className="flex-1">
@@ -597,10 +597,10 @@ export function Editor({
                 onChange={(e) => onTitleChange(e.target.value)}
                 placeholder="无标题"
                 rows={1}
-                className="w-full text-4xl font-bold text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-600 border-none outline-none bg-transparent tracking-tight resize-none overflow-hidden"
+                className="w-full text-4xl font-bold text-slate-900 dark:text-slate-100 placeholder-slate-300 dark:placeholder-slate-600 border-none outline-none bg-transparent tracking-tight resize-none overflow-hidden"
               />
             ) : (
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
                 {title || '无标题'}
               </h1>
             )}
@@ -610,13 +610,13 @@ export function Editor({
             <button
               onClick={handleGenerateMeta}
               disabled={isGeneratingMeta}
-              className="mt-2 p-1.5 text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors disabled:opacity-50"
+              className="mt-2 p-1.5 text-slate-400 hover:text-[#5E6AD2] hover:bg-[#5E6AD2]/10 rounded-lg transition-colors disabled:opacity-50"
               title="AI 生成标题和标签"
             >
               {isGeneratingMeta ? (
-                <span className="inline-block w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <span className="inline-block w-4 h-4 border-2 border-[#5E6AD2] border-t-transparent rounded-full animate-spin" />
               ) : (
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-4 w-4" strokeWidth={1.5} />
               )}
             </button>
           )}
@@ -628,7 +628,7 @@ export function Editor({
             {tags.map((tag, index) => (
               <span
                 key={index}
-                className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full"
+                className="px-2 py-0.5 text-xs bg-black/[0.03] dark:bg-white/[0.06] text-slate-600 dark:text-slate-400 rounded-full"
               >
                 {tag}
               </span>
@@ -637,7 +637,7 @@ export function Editor({
         )}
 
         {/* 日期元数据 */}
-        <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 font-medium mt-2 mb-4">
+        <div className="flex items-center gap-2 text-xs text-slate-400 font-medium mt-2 mb-4">
           <span>创建于 {formatDateTime(createdAt)}</span>
           <span>•</span>
           <span>
@@ -717,7 +717,7 @@ export function Editor({
 
         {/* 错误提示 */}
         {showError && (
-          <div className="fixed bottom-4 right-4 px-4 py-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm rounded-lg shadow-lg border border-red-200 dark:border-red-800">
+          <div className="fixed bottom-4 right-4 px-4 py-2 bg-red-50/90 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm rounded-xl shadow-lg border border-red-200/50 dark:border-red-800/50 backdrop-blur-sm">
             {showError}
           </div>
         )}

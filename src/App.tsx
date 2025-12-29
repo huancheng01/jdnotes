@@ -36,13 +36,13 @@ function ThemeToggleButton() {
   return (
     <button
       onClick={toggleTheme}
-      className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-200"
+      className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-slate-100 transition-colors duration-200 btn-press"
       title={resolvedTheme === 'dark' ? '切换浅色模式' : '切换深色模式'}
     >
       {resolvedTheme === 'dark' ? (
-        <Sun className="h-4 w-4" />
+        <Sun className="h-4 w-4" strokeWidth={1.5} />
       ) : (
-        <Moon className="h-4 w-4" />
+        <Moon className="h-4 w-4" strokeWidth={1.5} />
       )}
     </button>
   )
@@ -56,7 +56,7 @@ function SidebarItem({
   count,
   onClick,
 }: {
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>
   label: string
   active?: boolean
   count?: number
@@ -65,16 +65,17 @@ function SidebarItem({
   return (
     <button
       onClick={onClick}
-      className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-[13px] transition-colors duration-200 ${
+      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] transition-colors duration-150 btn-press ${
         active
-          ? 'bg-gray-200 dark:bg-dark-card text-gray-900 dark:text-gray-100 font-medium'
-          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-white/5'
+          ? 'bg-white dark:bg-white/[0.03] text-slate-900 dark:text-slate-100 font-medium shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
+          : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/[0.02]'
       }`}
     >
-      <Icon className="h-4 w-4" />
+      {active && <span className="w-0.5 h-4 bg-[#5E6AD2] rounded-full -ml-1 mr-1" />}
+      <Icon className="h-4 w-4" strokeWidth={1.5} />
       <span>{label}</span>
       {count !== undefined && count > 0 && (
-        <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">{count}</span>
+        <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{count}</span>
       )}
     </button>
   )
@@ -125,16 +126,18 @@ function NoteCard({
 
   return (
     <div
-      className={`group relative w-full text-left px-3 py-3 border-b border-gray-100 dark:border-white/10 transition-colors duration-200 cursor-pointer ${
-        active ? 'bg-gray-100 dark:bg-dark-card' : 'hover:bg-gray-50 dark:hover:bg-white/5'
+      className={`note-list-item group relative w-full text-left px-3 py-3 border-b border-black/[0.03] dark:border-white/[0.06] cursor-pointer ${
+        active
+          ? 'note-card-active'
+          : 'hover:bg-white/50 dark:hover:bg-white/[0.02]'
       }`}
       onClick={onClick}
     >
       <div className="flex items-center gap-1.5 pr-12">
         {note.isFavorite === 1 && (
-          <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+          <Star className="h-3 w-3 text-[#5E6AD2] fill-[#5E6AD2] flex-shrink-0" />
         )}
-        <h3 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 truncate flex-shrink min-w-0">
+        <h3 className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 truncate flex-shrink min-w-0 tracking-tight">
           {note.title || '无标题'}
         </h3>
         {note.tags && note.tags.length > 0 && (
@@ -142,23 +145,23 @@ function NoteCard({
             {note.tags.slice(0, 2).map((tag) => (
               <span
                 key={tag}
-                className="px-1.5 py-0.5 bg-gray-100 dark:bg-dark-card text-gray-500 dark:text-gray-400 text-[10px] rounded whitespace-nowrap"
+                className="px-1.5 py-0.5 bg-black/[0.03] dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 text-[10px] rounded whitespace-nowrap"
               >
                 {tag}
               </span>
             ))}
             {note.tags.length > 2 && (
-              <span className="text-[10px] text-gray-400 dark:text-gray-500">
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">
                 +{note.tags.length - 2}
               </span>
             )}
           </div>
         )}
       </div>
-      <p className="text-[12px] text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+      <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
         {preview || '空笔记'}
       </p>
-      <span className="text-[11px] text-gray-400 dark:text-gray-500 mt-2 block">
+      <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 block">
         {formatDate(note.updatedAt)}
       </span>
 
@@ -172,10 +175,10 @@ function NoteCard({
                 e.stopPropagation()
                 onRestore?.()
               }}
-              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10"
+              className="p-1 rounded hover:bg-black/[0.03] dark:hover:bg-white/[0.06] btn-press"
               title="恢复笔记"
             >
-              <RotateCcw className="h-3.5 w-3.5 text-gray-400 hover:text-green-500" />
+              <RotateCcw className="h-3.5 w-3.5 text-slate-400 hover:text-green-500" strokeWidth={1.5} />
             </button>
             {/* 彻底删除按钮 */}
             <button
@@ -183,10 +186,10 @@ function NoteCard({
                 e.stopPropagation()
                 onPermanentDelete?.()
               }}
-              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10"
+              className="p-1 rounded hover:bg-black/[0.03] dark:hover:bg-white/[0.06] btn-press"
               title="彻底删除"
             >
-              <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
+              <Trash2 className="h-3.5 w-3.5 text-slate-400 hover:text-red-500" strokeWidth={1.5} />
             </button>
           </>
         ) : (
@@ -196,10 +199,10 @@ function NoteCard({
               e.stopPropagation()
               onDelete()
             }}
-            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10"
+            className="p-1 rounded hover:bg-black/[0.03] dark:hover:bg-white/[0.06] btn-press"
             title="删除笔记"
           >
-            <X className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
+            <X className="h-3.5 w-3.5 text-slate-400 hover:text-red-500" strokeWidth={1.5} />
           </button>
         )}
       </div>
@@ -210,13 +213,13 @@ function NoteCard({
 // 空状态组件
 function EmptyState({ onCreateNote }: { onCreateNote: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500">
-      <FileText className="h-16 w-16 mb-4 stroke-1" />
+    <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
+      <FileText className="h-16 w-16 mb-4" strokeWidth={1} />
       <p className="text-[14px]">选择一个笔记开始编辑</p>
       <p className="text-[12px] mt-1">或者创建一个新笔记</p>
       <button
         onClick={onCreateNote}
-        className="mt-4 px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-[13px] rounded-md hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+        className="mt-4 px-4 py-2 bg-[#5E6AD2] text-white text-[13px] rounded-lg hover:bg-[#4F5ABF] transition-colors btn-press"
       >
         创建笔记
       </button>
@@ -227,12 +230,12 @@ function EmptyState({ onCreateNote }: { onCreateNote: () => void }) {
 // 无笔记状态
 function NoNotesState({ onCreateNote }: { onCreateNote: () => void }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
-      <FileText className="h-12 w-12 mb-3 stroke-1" />
+    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+      <FileText className="h-12 w-12 mb-3" strokeWidth={1} />
       <p className="text-[13px]">暂无笔记</p>
       <button
         onClick={onCreateNote}
-        className="mt-3 px-3 py-1.5 bg-gray-100 dark:bg-dark-card text-gray-600 dark:text-gray-300 text-[12px] rounded-md hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+        className="mt-3 px-3 py-1.5 bg-white dark:bg-white/[0.03] text-slate-600 dark:text-slate-300 text-[12px] rounded-lg hover:bg-slate-50 dark:hover:bg-white/[0.06] transition-colors shadow-sm btn-press"
       >
         创建第一个笔记
       </button>
@@ -487,17 +490,17 @@ function App() {
       {/* 设置模态框 */}
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
 
-      <div className="h-screen w-screen flex overflow-hidden bg-white dark:bg-dark-bg transition-colors duration-300">
-      {/* 左侧边栏 */}
-      <aside className="w-[260px] bg-gray-50 dark:bg-dark-sidebar border-r border-gray-200 dark:border-white/10 flex flex-col transition-colors duration-300">
+      <div className="h-screen w-screen flex overflow-hidden bg-[#F9FBFC] dark:bg-[#0B0D11] transition-colors duration-300">
+      {/* 左侧边栏 - 半透明渐变 */}
+      <aside className="w-[260px] sidebar-gradient border-r border-black/[0.03] dark:border-white/[0.06] flex flex-col transition-colors duration-300">
         {/* Logo 和主题切换 */}
-        <div className="p-3 border-b border-gray-200 dark:border-white/10">
+        <div className="p-3 border-b border-black/[0.03] dark:border-white/[0.06]">
           <div className="flex items-center justify-between px-2 py-1.5">
             <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded-md bg-gray-900 dark:bg-gray-100 flex items-center justify-center">
-                <span className="text-white dark:text-gray-900 text-[11px] font-semibold">J</span>
+              <div className="h-6 w-6 rounded-md bg-slate-900 dark:bg-slate-100 flex items-center justify-center">
+                <span className="text-white dark:text-slate-900 text-[11px] font-semibold">J</span>
               </div>
-              <span className="text-[13px] font-medium text-gray-900 dark:text-gray-100">
+              <span className="text-[13px] font-medium text-slate-900 dark:text-slate-100 tracking-tight">
                 JD Notes
               </span>
             </div>
@@ -507,21 +510,21 @@ function App() {
 
         {/* 搜索输入框 */}
         <div className="p-3">
-          <div className="flex items-center gap-2 w-full px-3 py-2 bg-white dark:bg-dark-input border border-gray-200 dark:border-gray-700 rounded-md shadow-sm text-[13px] text-gray-500 dark:text-gray-400 focus-within:border-gray-400 dark:focus-within:border-gray-500 transition-colors duration-200">
-            <Search className="h-4 w-4 flex-shrink-0" />
+          <div className="flex items-center gap-2 w-full px-3 py-2 bg-white/80 dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.06] rounded-lg text-[13px] text-slate-400 focus-within:border-[#5E6AD2]/30 transition-colors duration-200">
+            <Search className="h-4 w-4 flex-shrink-0" strokeWidth={1.5} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="搜索笔记..."
-              className="flex-1 bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+              className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="p-0.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded"
+                className="p-0.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.06] rounded btn-press"
               >
-                <X className="h-3.5 w-3.5 text-gray-400" />
+                <X className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.5} />
               </button>
             )}
           </div>
@@ -555,13 +558,13 @@ function App() {
         {/* 标签区域 */}
         <div className="mt-6 px-3 flex-1">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">
               标签
             </span>
           </div>
           <div className="space-y-1">
             {allTags.length === 0 ? (
-              <p className="text-[12px] text-gray-400 dark:text-gray-500 px-3 py-2">暂无标签</p>
+              <p className="text-[12px] text-slate-400 dark:text-slate-500 px-3 py-2">暂无标签</p>
             ) : (
               allTags.map((tag) => {
                 const tagCount =
@@ -573,15 +576,16 @@ function App() {
                   <button
                     key={tag}
                     onClick={() => setCurrentView(`tag-${tag}`)}
-                    className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-md text-[13px] transition-colors duration-200 ${
+                    className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-[13px] transition-colors duration-150 btn-press ${
                       isActive
-                        ? 'bg-gray-200 dark:bg-dark-card text-gray-900 dark:text-gray-100 font-medium'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-white/5'
+                        ? 'bg-white dark:bg-white/[0.03] text-slate-900 dark:text-slate-100 font-medium shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/[0.02]'
                     }`}
                   >
-                    <Tag className="h-3.5 w-3.5" />
+                    {isActive && <span className="w-0.5 h-3.5 bg-[#5E6AD2] rounded-full -ml-1 mr-0.5" />}
+                    <Tag className="h-3.5 w-3.5" strokeWidth={1.5} />
                     <span>{tag}</span>
-                    <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">
+                    <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500">
                       {tagCount}
                     </span>
                   </button>
@@ -592,22 +596,25 @@ function App() {
         </div>
 
         {/* 设置按钮 - 底部 */}
-        <div className="p-3 border-t border-gray-200 dark:border-white/10">
+        <div className="p-3 border-t border-black/[0.03] dark:border-white/[0.06]">
           <button
             onClick={() => setShowSettings(true)}
-            className="flex items-center gap-3 w-full px-3 py-2 text-[13px] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200/50 dark:hover:bg-white/5 rounded-md transition-colors duration-200"
+            className="flex items-center gap-3 w-full px-3 py-2 text-[13px] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-white/[0.02] rounded-lg transition-colors duration-200 btn-press"
           >
-            <Settings className="h-4 w-4" />
+            <Settings className="h-4 w-4" strokeWidth={1.5} />
             <span>设置</span>
           </button>
+          <p className="text-[10px] text-slate-300 dark:text-slate-700 text-center mt-3 italic tracking-wide">
+            Think is Water
+          </p>
         </div>
       </aside>
 
       {/* 中间笔记列表 */}
-      <div className="w-[320px] bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-white/10 flex flex-col transition-colors duration-300">
+      <div className="w-[320px] bg-[#F9FBFC] dark:bg-[#0B0D11] border-r border-black/[0.03] dark:border-white/[0.06] flex flex-col transition-colors duration-300">
         {/* 列表头部 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-white/10">
-          <h2 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.03] dark:border-white/[0.06]">
+          <h2 className="text-[15px] font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
             {searchQuery
               ? `搜索: "${searchQuery}"`
               : currentView === 'inbox'
@@ -623,10 +630,10 @@ function App() {
           {currentView !== 'trash' && (
             <button
               onClick={handleCreateNote}
-              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 transition-colors duration-200"
+              className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-white/[0.03] transition-colors duration-200 btn-press"
               title="新建笔记"
             >
-              <Plus className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+              <Plus className="h-4 w-4 text-slate-600 dark:text-slate-400" strokeWidth={1.5} />
             </button>
           )}
         </div>
@@ -654,67 +661,68 @@ function App() {
 
       {/* 右侧编辑器 + AI 侧栏 */}
       <div className="flex-1 flex h-full overflow-hidden">
-      <main className="flex-1 bg-white dark:bg-dark-bg h-full overflow-hidden flex flex-col transition-colors duration-300">
+      <main className="flex-1 bg-[#F9FBFC] dark:bg-[#0B0D11] h-full overflow-hidden flex flex-col transition-colors duration-300">
         {activeNoteId !== null ? (
           <>
-            {/* 编辑器头部 */}
-            <div className="flex items-center justify-between px-12 py-4 border-b border-gray-100 dark:border-white/10">
-              <nav className="text-[13px] text-gray-500 dark:text-gray-400">
-                <span className="hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer">
+            {/* 编辑器头部 - 毛玻璃效果 */}
+            <div className="flex items-center justify-between px-12 py-4 border-b border-black/[0.03] dark:border-white/[0.06] editor-header-glass sticky top-0 z-10">
+              <nav className="text-[13px] text-slate-400">
+                <span className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer transition-colors">
                   收件箱
                 </span>
                 <span className="mx-2">/</span>
-                <span className="text-gray-900 dark:text-gray-100">
+                <span className="text-slate-900 dark:text-slate-100">
                   {localTitle || '无标题'}
                 </span>
               </nav>
               <div className="flex items-center gap-2">
-                <span className="text-[12px] text-gray-400 dark:text-gray-500">
+                <span className="text-[12px] text-slate-400">
                   最后编辑于 {formatDate(activeNote?.updatedAt ?? new Date())}
                 </span>
                 {/* 收藏按钮 */}
                 <button
                   onClick={() => activeNoteId && handleToggleFavorite(activeNoteId)}
-                  className={`p-1.5 rounded-md transition-colors duration-200 ${
+                  className={`p-1.5 rounded-lg transition-colors duration-200 btn-press ${
                     activeNote?.isFavorite === 1
-                      ? 'text-yellow-500 hover:bg-gray-100 dark:hover:bg-white/10'
-                      : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100 dark:hover:bg-white/10'
+                      ? 'text-[#5E6AD2] hover:bg-black/[0.03] dark:hover:bg-white/[0.06]'
+                      : 'text-slate-400 hover:text-[#5E6AD2] hover:bg-black/[0.03] dark:hover:bg-white/[0.06]'
                   }`}
                   title={activeNote?.isFavorite === 1 ? '取消收藏' : '收藏'}
                 >
                   <Star
-                    className={`h-4 w-4 ${activeNote?.isFavorite === 1 ? 'fill-yellow-500' : ''}`}
+                    className={`h-4 w-4 ${activeNote?.isFavorite === 1 ? 'fill-[#5E6AD2]' : ''}`}
+                    strokeWidth={1.5}
                   />
                 </button>
                 {/* 模式切换按钮 */}
                 <button
                   onClick={() => setIsEditing(!isEditing)}
-                  className="p-1.5 rounded-md text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors duration-200"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-black/[0.03] dark:hover:bg-white/[0.06] transition-colors duration-200 btn-press"
                   title={isEditing ? '切换到阅读模式' : '切换到编辑模式'}
                 >
                   {isEditing ? (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-4 w-4" strokeWidth={1.5} />
                   ) : (
-                    <PenLine className="h-4 w-4" />
+                    <PenLine className="h-4 w-4" strokeWidth={1.5} />
                   )}
                 </button>
                 {/* AI 助手按钮 */}
                 <button
                   onClick={toggleChat}
-                  className={`p-1.5 rounded-md transition-colors duration-200 ${
+                  className={`p-1.5 rounded-lg transition-colors duration-200 btn-press ${
                     isChatOpen
-                      ? 'text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
-                      : 'text-gray-400 hover:text-indigo-500 hover:bg-gray-100 dark:hover:bg-white/10'
+                      ? 'text-[#5E6AD2] bg-[#5E6AD2]/10'
+                      : 'text-slate-400 hover:text-[#5E6AD2] hover:bg-black/[0.03] dark:hover:bg-white/[0.06]'
                   }`}
                   title="AI 助手 (⌘J)"
                 >
-                  <Sparkles className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4" strokeWidth={1.5} />
                 </button>
               </div>
             </div>
 
             {/* 标签输入区域 */}
-            <div className="px-12 py-2 border-b border-gray-100 dark:border-white/10">
+            <div className="px-12 py-2 border-b border-black/[0.03] dark:border-white/[0.06]">
               <TagsInput
                 tags={activeNote?.tags ?? []}
                 onChange={handleTagsChange}

@@ -85,13 +85,15 @@ export function ChatMessageItem({
   const isUser = message.role === 'user'
 
   return (
-    <div className="group py-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+    <div className={`group py-3 border-b border-black/[0.03] dark:border-white/[0.06] last:border-b-0 ${
+      !isUser ? 'ai-message-float px-3 py-3 my-1 -mx-1' : ''
+    }`}>
       {/* 角色标签 */}
       <div className="flex items-center justify-between mb-1.5">
         <span className={`text-[11px] font-medium ${
           isUser
-            ? 'text-indigo-600 dark:text-indigo-400'
-            : 'text-gray-500 dark:text-gray-400'
+            ? 'text-[#5E6AD2]'
+            : 'text-slate-500 dark:text-slate-400'
         }`}>
           {isUser ? '你' : 'AI'}
         </span>
@@ -102,13 +104,13 @@ export function ChatMessageItem({
             {/* 复制 */}
             <button
               onClick={handleCopy}
-              className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
               title="复制"
             >
               {copied ? (
                 <Check className="h-3 w-3 text-green-500" />
               ) : (
-                <Copy className="h-3 w-3" />
+                <Copy className="h-3 w-3" strokeWidth={1.5} />
               )}
             </button>
 
@@ -117,14 +119,14 @@ export function ChatMessageItem({
               <button
                 onClick={() => setIsEditing(true)}
                 disabled={isAnyStreaming}
-                className={`p-1 rounded ${
+                className={`p-1 rounded-md ${
                   isAnyStreaming
-                    ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.06]'
                 }`}
                 title={isAnyStreaming ? '等待 AI 响应完成' : '编辑'}
               >
-                <Pencil className="h-3 w-3" />
+                <Pencil className="h-3 w-3" strokeWidth={1.5} />
               </button>
             )}
 
@@ -132,10 +134,10 @@ export function ChatMessageItem({
             {!isUser && (
               <button
                 onClick={() => onRetry(message)}
-                className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
                 title="重新生成"
               >
-                <RotateCcw className="h-3 w-3" />
+                <RotateCcw className="h-3 w-3" strokeWidth={1.5} />
               </button>
             )}
 
@@ -143,20 +145,20 @@ export function ChatMessageItem({
             {!isUser && onInsertToNote && (
               <button
                 onClick={() => onInsertToNote(message.content)}
-                className="p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-1 rounded-md text-slate-400 hover:text-[#5E6AD2] hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
                 title="插入到笔记"
               >
-                <FileInput className="h-3 w-3" />
+                <FileInput className="h-3 w-3" strokeWidth={1.5} />
               </button>
             )}
 
             {/* 删除 */}
             <button
               onClick={() => onDelete(message.id)}
-              className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
               title="删除"
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-3 w-3" strokeWidth={1.5} />
             </button>
           </div>
         )}
@@ -170,23 +172,23 @@ export function ChatMessageItem({
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full bg-white dark:bg-[#1E2025] text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 rounded-md px-3 py-2 text-[13px] resize-none outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-all"
+            className="w-full bg-white/80 dark:bg-white/[0.03] text-slate-800 dark:text-slate-200 border border-black/[0.06] dark:border-white/[0.06] rounded-lg px-3 py-2 text-[13px] resize-none outline-none focus:border-[#5E6AD2]/50 focus:ring-1 focus:ring-[#5E6AD2]/30 transition-all"
             rows={1}
           />
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-400 dark:text-gray-500">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500">
               Enter 发送 · Shift+Enter 换行 · Esc 取消
             </span>
             <div className="flex gap-1">
               <button
                 onClick={handleCancelEdit}
-                className="px-2 py-1 text-[11px] rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="px-2 py-1 text-[11px] rounded-md text-slate-500 hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
               >
                 取消
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="px-2 py-1 text-[11px] rounded bg-indigo-500 text-white hover:bg-indigo-600"
+                className="px-2 py-1 text-[11px] rounded-md bg-[#5E6AD2] text-white hover:bg-[#4F5ABF]"
               >
                 发送
               </button>
@@ -196,8 +198,8 @@ export function ChatMessageItem({
       ) : (
         <div className={`text-[13px] leading-relaxed ${
           isUser
-            ? 'text-indigo-600 dark:text-indigo-400'
-            : 'text-gray-700 dark:text-gray-300'
+            ? 'text-[#5E6AD2]'
+            : 'text-slate-700 dark:text-slate-300'
         }`}>
           {isUser ? (
             <span className="whitespace-pre-wrap">{message.content}</span>
