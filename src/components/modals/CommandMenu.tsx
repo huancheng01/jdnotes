@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Command } from 'cmdk'
 import { FileText, Plus, Moon, Sun, Search } from 'lucide-react'
-import type { Note } from './db'
-import { useTheme } from './ThemeContext'
+import type { Note } from '../../lib/db'
+import { useTheme } from '../../contexts/ThemeContext'
 
 interface CommandMenuProps {
   notes: Note[]

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, Eye, EyeOff } from 'lucide-react'
-import { useSettings } from './useSettings'
+import { useSettings } from '../../hooks/useSettings'
 
 interface SettingsModalProps {
   open: boolean
@@ -122,6 +122,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
               一个简洁高效的本地笔记应用
+            </p>
+            <p className="text-xs text-slate-300 dark:text-slate-600 mt-3 italic">
+              to jiaxiang
             </p>
           </div>
         </div>

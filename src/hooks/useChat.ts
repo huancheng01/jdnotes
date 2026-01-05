@@ -1,0 +1,183 @@
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db, chatOperations, type ChatMessage } from '../lib/db'
+import { useAIStream } from './useAIStream'
+
+interface UseChatProps {
+  noteId: number | null
+  noteTitle: string
+  noteContent: string
+}
+
+export function useChat({ noteId, noteTitle, noteContent }: UseChatProps) {
+  const [input, setInput] = useState('')
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null)
+  const [streamingContent, setStreamingContent] = useState('')
+  const [isStreamingActive, setIsStreamingActive] = useState(false)
+  const [isRetryMode, setIsRetryMode] = useState(false)
+
+  const streamTextRef = useRef('')
+  const pendingUserMessageRef = useRef<string | null>(null)
+  const noteIdRef = useRef<number | null>(null)
+  const isRetryModeRef = useRef(false)
+
+  // Sync refs
+  useEffect(() => {
+    pendingUserMessageRef.current = pendingUserMessage
+    noteIdRef.current = noteId
+    isRetryModeRef.current = isRetryMode
+  }, [pendingUserMessage, noteId, isRetryMode])
+
+  // Get messages
+  const messages = useLiveQuery(
+    () => (noteId ? db.chatMessages.where('noteId').equals(noteId).sortBy('timestamp') : []),
+    [noteId],
+    []
+  )
+
+  // Build context prompt
+  const buildContextPrompt = useCallback(() => {
+    return `你是 JD Notes 的 AI 助手。
+
+当前笔记上下文：
+- 标题：${noteTitle || '无标题'}
+- 内容：${noteContent.slice(0, 2000)}${noteContent.length > 2000 ? '...(内容已截断)' : ''}
+
+请根据用户的问题提供帮助。如果问题与笔记内容相关，请结合笔记上下文作答。`
+  }, [noteTitle, noteContent])
+
+  // AI Stream
+  const { isStreaming, startStream, stopStream } = useAIStream({
+    onChunk: (chunk) => {
+      streamTextRef.current += chunk
+      setStreamingContent(streamTextRef.current)
+    },
+    onFinish: async (fullText) => {
+      const currentNoteId = noteIdRef.current
+      const userMsg = pendingUserMessageRef.current
+      const isRetry = isRetryModeRef.current
+
+      if (currentNoteId) {
+        if (!isRetry && userMsg) {
+          await chatOperations.add(currentNoteId, 'user', userMsg)
+        }
+        await chatOperations.add(currentNoteId, 'assistant', fullText)
+      }
+
+      setPendingUserMessage(null)
+      setStreamingContent('')
+      setIsStreamingActive(false)
+      setIsRetryMode(false)
+      streamTextRef.current = ''
+    },
+    onError: async (error) => {
+      const currentNoteId = noteIdRef.current
+      const userMsg = pendingUserMessageRef.current
+      const isRetry = isRetryModeRef.current
+
+      if (currentNoteId) {
+        if (!isRetry && userMsg) {
+          await chatOperations.add(currentNoteId, 'user', userMsg)
+        }
+        await chatOperations.add(currentNoteId, 'assistant', `错误: ${error}`)
+      }
+
+      setPendingUserMessage(null)
+      setStreamingContent('')
+      setIsStreamingActive(false)
+      setIsRetryMode(false)
+      streamTextRef.current = ''
+    },
+  })
+
+  // Actions
+  const sendMessage = useCallback(async (content: string) => {
+    if (!content.trim() || isStreaming || !noteId) return
+
+    setPendingUserMessage(content.trim())
+    setIsStreamingActive(true)
+    streamTextRef.current = ''
+    setStreamingContent('')
+
+    await startStream('custom', content.trim(), buildContextPrompt())
+  }, [noteId, isStreaming, startStream, buildContextPrompt])
+
+  const handleSend = async () => {
+    if (!input.trim()) return
+    const content = input.trim()
+    setInput('')
+    await sendMessage(content)
+  }
+
+  const handleEdit = useCallback(async (id: number, newContent: string) => {
+    if (!noteId) return
+
+    await db.chatMessages
+      .where('noteId')
+      .equals(noteId)
+      .filter((msg) => msg.id > id)
+      .delete()
+
+    await db.chatMessages.update(id, { content: newContent })
+
+    setIsRetryMode(true)
+    setIsStreamingActive(true)
+    streamTextRef.current = ''
+    setStreamingContent('')
+
+    await startStream('custom', newContent, buildContextPrompt())
+  }, [noteId, startStream, buildContextPrompt])
+
+  const handleDelete = useCallback(async (id: number) => {
+    await chatOperations.delete(id)
+  }, [])
+
+  const handleRetry = useCallback(async (message: ChatMessage) => {
+    if (!noteId || !messages) return
+
+    const messageIndex = messages.findIndex((m) => m.id === message.id)
+    if (messageIndex <= 0) return
+
+    const userMessage = messages[messageIndex - 1]
+    if (userMessage.role !== 'user') return
+
+    await chatOperations.delete(message.id)
+
+    setIsRetryMode(true)
+    setIsStreamingActive(true)
+    streamTextRef.current = ''
+    setStreamingContent('')
+
+    await startStream('custom', userMessage.content, buildContextPrompt())
+  }, [noteId, messages, startStream, buildContextPrompt])
+
+  const handleClear = async () => {
+    if (isStreaming) {
+      stopStream()
+    }
+    if (noteId) {
+      await chatOperations.clearByNoteId(noteId)
+    }
+    setPendingUserMessage(null)
+    setStreamingContent('')
+    setIsStreamingActive(false)
+    setIsRetryMode(false)
+    streamTextRef.current = ''
+  }
+
+  return {
+    input,
+    setInput,
+    messages,
+    pendingUserMessage,
+    streamingContent,
+    isStreamingActive,
+    isStreaming,
+    isRetryMode,
+    handleSend,
+    handleEdit,
+    handleDelete,
+    handleRetry,
+    handleClear,
+  }
+}

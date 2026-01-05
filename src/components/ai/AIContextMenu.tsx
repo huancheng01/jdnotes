@@ -1,6 +1,6 @@
 import { Sparkles, FileText, Languages, MessageSquare, Send, X } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
-import { AIAction } from './useAIStream'
+import type { AIAction } from '../../hooks/useAIStream'
 
 interface AIContextMenuProps {
   position: { x: number; y: number } | null

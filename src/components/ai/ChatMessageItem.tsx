@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Copy, Pencil, Trash2, RotateCcw, Check, FileInput } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { ChatMessage } from './db'
+import type { ChatMessage } from '../../lib/db'
 
 interface ChatMessageItemProps {
   message: ChatMessage

@@ -1,6 +1,6 @@
 import { BubbleMenu, Editor } from '@tiptap/react'
 import { Sparkles, FileText, Languages, Square } from 'lucide-react'
-import { useAIStream, AIAction } from './useAIStream'
+import { useAIStream, type AIAction } from '../../hooks/useAIStream'
 import { useCallback, useState } from 'react'
 
 interface AIBubbleMenuProps {

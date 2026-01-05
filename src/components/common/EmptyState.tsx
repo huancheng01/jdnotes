@@ -1,0 +1,32 @@
+import { FileText } from 'lucide-react'
+
+export function EmptyState({ onCreateNote }: { onCreateNote: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
+      <FileText className="h-16 w-16 mb-4" strokeWidth={1} />
+      <p className="text-[14px]">选择一个笔记开始编辑</p>
+      <p className="text-[12px] mt-1">或者创建一个新笔记</p>
+      <button
+        onClick={onCreateNote}
+        className="mt-4 px-4 py-2 bg-[#5E6AD2] text-white text-[13px] rounded-lg hover:bg-[#4F5ABF] transition-colors btn-press"
+      >
+        创建笔记
+      </button>
+    </div>
+  )
+}
+
+export function NoNotesState({ onCreateNote }: { onCreateNote: () => void }) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+      <FileText className="h-12 w-12 mb-3" strokeWidth={1} />
+      <p className="text-[13px]">暂无笔记</p>
+      <button
+        onClick={onCreateNote}
+        className="mt-3 px-3 py-1.5 bg-white dark:bg-white/[0.03] text-slate-600 dark:text-slate-300 text-[12px] rounded-lg hover:bg-slate-50 dark:hover:bg-white/[0.06] transition-colors shadow-sm btn-press"
+      >
+        创建第一个笔记
+      </button>
+    </div>
+  )
+}

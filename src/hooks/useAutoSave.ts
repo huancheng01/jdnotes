@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
-import { noteOperations } from './db'
+import { noteOperations } from '../lib/db'
 
 interface UseAutoSaveOptions {
   noteId: number | null

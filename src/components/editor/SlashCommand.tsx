@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Editor } from '@tiptap/react'
+import { useState, useEffect, useRef } from 'react'
+import type { Editor } from '@tiptap/react'
 import { Sparkles, FileText, Lightbulb, Code } from 'lucide-react'
 
 export interface SlashCommandItem {
@@ -18,7 +18,7 @@ interface SlashCommandProps {
   onClose: () => void
 }
 
-export function SlashCommand({ editor, items, position, onSelect, onClose }: SlashCommandProps) {
+export function SlashCommand({ items, position, onSelect, onClose }: SlashCommandProps) {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 

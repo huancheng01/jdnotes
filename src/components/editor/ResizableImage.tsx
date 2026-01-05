@@ -1,4 +1,4 @@
-import { NodeViewWrapper, NodeViewProps } from '@tiptap/react'
+import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { useState, useRef, useCallback, useEffect } from 'react'
 
 interface ImagePreviewProps {
