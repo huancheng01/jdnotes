@@ -6,6 +6,7 @@ import {
   Tag,
   X,
   Settings,
+  Calendar,
 } from 'lucide-react'
 import { SidebarItem } from '../common/SidebarItem'
 import { ThemeToggleButton } from '../common/ThemeToggleButton'
@@ -94,6 +95,12 @@ export function Sidebar({
           active={currentView === 'trash'}
           count={counts.trash}
           onClick={() => onViewChange('trash')}
+        />
+        <SidebarItem
+          icon={Calendar}
+          label="日历"
+          active={currentView === 'calendar'}
+          onClick={() => onViewChange('calendar')}
         />
       </nav>
 

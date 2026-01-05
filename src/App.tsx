@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { Editor } from './components/editor'
 import { initializeDefaultNotes, type Note } from './lib/db'
 import { useAutoSave, useNotes } from './hooks'
 import { CommandMenu } from './components/modals/CommandMenu'
@@ -7,9 +6,10 @@ import { Sidebar, NoteList, MainContent } from './components/layout'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { SettingsModal } from './components/modals/SettingsModal'
 import { AIChatSidebar } from './components/ai/AIChatSidebar'
+import { CalendarView } from './components/calendar'
 
 // 视图类型
-type ViewType = 'inbox' | 'favorites' | 'trash' | `tag-${string}`
+type ViewType = 'inbox' | 'favorites' | 'trash' | 'calendar' | `tag-${string}`
 
 function App() {
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null)
@@ -72,7 +72,26 @@ function App() {
     setLocalTitle(note.title)
     setLocalContent(note.content)
     setIsEditing(false) // 切换笔记时默认进入阅读模式
+    // 如果当前在日历视图，切换回收件箱
+    if (currentView === 'calendar') {
+      setCurrentView('inbox')
+    }
   }
+
+  // 从日历视图创建笔记（带日期）
+  const handleCalendarCreateNote = useCallback(async (date?: Date) => {
+    try {
+      const id = await createNote()
+      setActiveNoteId(Number(id))
+      setLocalTitle('无标题')
+      setLocalContent('')
+      setIsEditing(true)
+      // 切换回收件箱视图
+      setCurrentView('inbox')
+    } catch (error) {
+      console.error('Failed to create note:', error)
+    }
+  }, [createNote])
 
   // 更新已知笔记 ID 集合，并处理删除场景
   useEffect(() => {
@@ -214,48 +233,61 @@ function App() {
           onOpenSettings={() => setShowSettings(true)}
         />
 
-        <NoteList
-          searchQuery={searchQuery}
-          currentView={currentView}
-          notes={notes}
-          activeNoteId={activeNoteId}
-          onSelectNote={handleSelectNote}
-          onCreateNote={handleCreateNote}
-          onDeleteNote={handleDeleteNote}
-          onRestoreNote={handleRestoreNote}
-          onPermanentDelete={handlePermanentDelete}
-        />
+        {/* 日历视图 */}
+        {currentView === 'calendar' ? (
+          <div className="flex-1 h-full overflow-hidden">
+            <CalendarView
+              onSelectNote={handleSelectNote}
+              onCreateNote={handleCalendarCreateNote}
+              onBack={() => setCurrentView('inbox')}
+            />
+          </div>
+        ) : (
+          <>
+            <NoteList
+              searchQuery={searchQuery}
+              currentView={currentView}
+              notes={notes}
+              activeNoteId={activeNoteId}
+              onSelectNote={handleSelectNote}
+              onCreateNote={handleCreateNote}
+              onDeleteNote={handleDeleteNote}
+              onRestoreNote={handleRestoreNote}
+              onPermanentDelete={handlePermanentDelete}
+            />
 
-      {/* 右侧编辑器 + AI 侧栏 */}
-      <div className="flex-1 flex h-full overflow-hidden">
-        <MainContent
-          activeNoteId={activeNoteId}
-          activeNote={activeNote}
-          localTitle={localTitle}
-          localContent={localContent}
-          isEditing={isEditing}
-          isChatOpen={isChatOpen}
-          contentToInsert={contentToInsert}
-          onTitleChange={handleTitleChange}
-          onContentChange={handleContentChange}
-          onTagsChange={handleTagsChange}
-          onToggleFavorite={handleToggleFavorite}
-          onToggleEdit={() => setIsEditing(!isEditing)}
-          onToggleChat={toggleChat}
-          onCreateNote={handleCreateNote}
-          onContentInserted={handleContentInserted}
-        />
+            {/* 右侧编辑器 + AI 侧栏 */}
+            <div className="flex-1 flex h-full overflow-hidden">
+              <MainContent
+                activeNoteId={activeNoteId}
+                activeNote={activeNote}
+                localTitle={localTitle}
+                localContent={localContent}
+                isEditing={isEditing}
+                isChatOpen={isChatOpen}
+                contentToInsert={contentToInsert}
+                onTitleChange={handleTitleChange}
+                onContentChange={handleContentChange}
+                onTagsChange={handleTagsChange}
+                onToggleFavorite={handleToggleFavorite}
+                onToggleEdit={() => setIsEditing(!isEditing)}
+                onToggleChat={toggleChat}
+                onCreateNote={handleCreateNote}
+                onContentInserted={handleContentInserted}
+              />
 
-        {/* AI 聊天侧栏 */}
-        <AIChatSidebar
-          isOpen={isChatOpen}
-          onClose={() => setIsChatOpen(false)}
-          noteId={activeNoteId}
-          noteTitle={localTitle}
-          noteContent={localContent}
-          onInsertToNote={handleInsertToNote}
-        />
-      </div>
+              {/* AI 聊天侧栏 */}
+              <AIChatSidebar
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+                noteId={activeNoteId}
+                noteTitle={localTitle}
+                noteContent={localContent}
+                onInsertToNote={handleInsertToNote}
+              />
+            </div>
+          </>
+        )}
       </div>
     </>
   )

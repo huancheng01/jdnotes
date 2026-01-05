@@ -111,12 +111,20 @@ export function AIChatSidebar({ isOpen, onClose, noteId, noteTitle, noteContent,
       content: pendingUserMessage,
     })
   }
-  if (isStreamingActive) {
+  
+  // 只有当有实际内容时才添加流式 AI 消息
+  if (isStreamingActive && streamingContent) {
     displayMessages.push({
       role: 'assistant' as const,
       content: streamingContent,
     })
   }
+
+  // 判断是否正在等待 AI 回复：
+  // 1. 正在流式传输但还没有内容（等待第一个响应）
+  // 2. 用户消息已发送，正在请求但还没开始流式响应
+  const isWaitingForResponse = (isStreamingActive && !streamingContent) ||
+    ((pendingUserMessage || isStreaming) && !isStreamingActive)
 
   return (
     <div className="w-[350px] ai-sidebar-glass border-l border-black/[0.03] dark:border-white/[0.06] flex flex-col h-full ai-chat-sidebar">
@@ -186,6 +194,27 @@ export function AIChatSidebar({ isOpen, onClose, noteId, noteTitle, noteContent,
                 />
               )
             })}
+            
+            {/* 等待 AI 回复的加载动画 */}
+            {isWaitingForResponse && (
+              <div className="py-3 ai-thinking-indicator">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                    AI
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="ai-thinking-dots">
+                    <span className="ai-dot"></span>
+                    <span className="ai-dot"></span>
+                    <span className="ai-dot"></span>
+                  </div>
+                  <span className="text-[12px] text-slate-400 dark:text-slate-500 ml-1">
+                    思考中...
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
         <div ref={messagesEndRef} />

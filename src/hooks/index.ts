@@ -7,3 +7,13 @@ export { useChat } from './useChat'
 export { useNotes } from './useNotes'
 export { useEditorAI } from './useEditorAI'
 export { useSlashCommand } from './useSlashCommand'
+export {
+  useCalendar,
+  getWeekNumber,
+  getHeatmapColor,
+  formatCalendarTime,
+  isSameDay,
+  type CalendarView,
+  type DateField,
+  type UseCalendarReturn,
+} from './useCalendar'

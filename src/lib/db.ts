@@ -10,6 +10,9 @@ export interface Note {
   isDeleted: number // 0 或 1
   createdAt: Date
   updatedAt: Date
+  // 日历提醒相关字段
+  reminderDate?: Date // 提醒日期时间
+  reminderEnabled?: number // 0 或 1，是否启用提醒
 }
 
 // 聊天消息数据类型
@@ -69,6 +72,22 @@ class NoteAppDB extends Dexie {
       notes: '++id, title, *tags, isFavorite, isDeleted, createdAt, updatedAt',
       chatMessages: '++id, noteId, timestamp',
     })
+
+    // 版本 5：添加提醒字段索引
+    this.version(5)
+      .stores({
+        notes: '++id, title, *tags, isFavorite, isDeleted, createdAt, updatedAt, reminderDate, reminderEnabled',
+        chatMessages: '++id, noteId, timestamp',
+      })
+      .upgrade((tx) => {
+        return tx
+          .table('notes')
+          .toCollection()
+          .modify((note) => {
+            note.reminderDate = undefined
+            note.reminderEnabled = 0
+          })
+      })
   }
 }
 
@@ -227,6 +246,117 @@ export const noteOperations = {
     })
     return Array.from(tagSet).sort()
   },
+
+  // ============= 日历相关方法 =============
+
+  // 获取指定日期范围的笔记
+  async getByDateRange(
+    startDate: Date,
+    endDate: Date,
+    dateField: 'createdAt' | 'updatedAt' = 'createdAt'
+  ): Promise<Note[]> {
+    const notes = await db.notes
+      .where(dateField)
+      .between(startDate, endDate, true, true)
+      .and((note) => note.isDeleted === 0)
+      .toArray()
+    return notes.sort((a, b) => {
+      const dateA = a[dateField] as Date
+      const dateB = b[dateField] as Date
+      return dateA.getTime() - dateB.getTime()
+    })
+  },
+
+  // 获取指定日期的笔记
+  async getByDate(
+    date: Date,
+    dateField: 'createdAt' | 'updatedAt' = 'createdAt'
+  ): Promise<Note[]> {
+    const startOfDay = new Date(date)
+    startOfDay.setHours(0, 0, 0, 0)
+
+    const endOfDay = new Date(date)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    return this.getByDateRange(startOfDay, endOfDay, dateField)
+  },
+
+  // 获取笔记的日期分布统计
+  async getDateDistribution(
+    startDate: Date,
+    endDate: Date,
+    dateField: 'createdAt' | 'updatedAt' = 'createdAt'
+  ): Promise<Map<string, number>> {
+    const notes = await this.getByDateRange(startDate, endDate, dateField)
+    const distribution = new Map<string, number>()
+
+    notes.forEach((note) => {
+      const dateKey = formatDateKey(note[dateField] as Date)
+      distribution.set(dateKey, (distribution.get(dateKey) || 0) + 1)
+    })
+
+    return distribution
+  },
+
+  // 更新笔记的创建时间（用于拖拽功能）
+  async updateCreatedAt(id: number, newDate: Date): Promise<void> {
+    await db.notes.update(id, {
+      createdAt: newDate,
+      updatedAt: new Date(),
+    })
+  },
+
+  // ============= 提醒相关方法 =============
+
+  // 设置提醒
+  async setReminder(id: number, reminderDate: Date): Promise<void> {
+    await db.notes.update(id, {
+      reminderDate,
+      reminderEnabled: 1,
+      updatedAt: new Date(),
+    })
+  },
+
+  // 清除提醒
+  async clearReminder(id: number): Promise<void> {
+    await db.notes.update(id, {
+      reminderDate: undefined,
+      reminderEnabled: 0,
+      updatedAt: new Date(),
+    })
+  },
+
+  // 获取即将到期的提醒
+  async getUpcomingReminders(withinMinutes: number = 60): Promise<Note[]> {
+    const now = new Date()
+    const future = new Date(now.getTime() + withinMinutes * 60 * 1000)
+
+    const notes = await db.notes
+      .where('reminderEnabled')
+      .equals(1)
+      .and((note) => note.isDeleted === 0)
+      .toArray()
+
+    return notes.filter((note) => {
+      if (!note.reminderDate) return false
+      const reminderTime = new Date(note.reminderDate).getTime()
+      return reminderTime >= now.getTime() && reminderTime <= future.getTime()
+    })
+  },
+
+  // 获取所有启用提醒的笔记
+  async getNotesWithReminders(): Promise<Note[]> {
+    return await db.notes
+      .where('reminderEnabled')
+      .equals(1)
+      .and((note) => note.isDeleted === 0)
+      .toArray()
+  },
+}
+
+// 辅助函数：格式化日期为 YYYY-MM-DD
+export function formatDateKey(date: Date): string {
+  return date.toISOString().split('T')[0]
 }
 
 // 聊天消息操作函数

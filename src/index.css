@@ -571,3 +571,99 @@ body {
 .dark .border-water {
   border-color: rgba(255, 255, 255, 0.06);
 }
+
+/* ===== AI 思考中动画 ===== */
+
+/* 思考指示器容器 */
+.ai-thinking-indicator {
+  animation: ai-thinking-fade-in 0.3s ease-out;
+}
+
+@keyframes ai-thinking-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 跳动的点容器 */
+.ai-thinking-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 单个点样式 */
+.ai-dot {
+  width: 6px;
+  height: 6px;
+  background: #5E6AD2;
+  border-radius: 50%;
+  animation: ai-dot-bounce 1.4s ease-in-out infinite;
+}
+
+.dark .ai-dot {
+  background: #818cf8;
+}
+
+/* 第二个点延迟 */
+.ai-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+/* 第三个点延迟 */
+.ai-dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+/* 跳动动画 */
+@keyframes ai-dot-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+/* 备用脉冲动画（更柔和的效果） */
+@keyframes ai-dot-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+/* 波浪效果版本 */
+.ai-thinking-wave .ai-dot {
+  animation: ai-dot-wave 1.2s ease-in-out infinite;
+}
+
+@keyframes ai-dot-wave {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translateY(-4px);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  75% {
+    transform: translateY(2px);
+    opacity: 0.6;
+  }
+}
