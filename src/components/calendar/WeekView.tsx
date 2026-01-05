@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
-import { Plus, Bell, Clock } from 'lucide-react'
 import { useDroppable } from '@dnd-kit/core'
 import { DraggableNote } from './CalendarCell'
-import { isSameDay, formatCalendarTime } from '../../hooks/useCalendar'
+import { isSameDay } from '../../hooks/useCalendar'
 import { formatDateKey, type Note } from '../../lib/db'
 
 interface WeekViewProps {
@@ -10,7 +9,6 @@ interface WeekViewProps {
   notes: Note[]
   dateField: 'createdAt' | 'updatedAt'
   onSelectNote: (note: Note) => void
-  onCreateNote: (date?: Date) => void
 }
 
 export function WeekView({
@@ -18,7 +16,6 @@ export function WeekView({
   notes,
   dateField,
   onSelectNote,
-  onCreateNote,
 }: WeekViewProps) {
   // 生成一周的日期
   const weekDays = useMemo(() => {
@@ -65,7 +62,6 @@ export function WeekView({
             notes={notesByDay.get(formatDateKey(date)) || []}
             isToday={isSameDay(date, today)}
             onSelectNote={onSelectNote}
-            onCreateNote={onCreateNote}
           />
         ))}
       </div>
@@ -78,7 +74,6 @@ interface WeekDayColumnProps {
   notes: Note[]
   isToday: boolean
   onSelectNote: (note: Note) => void
-  onCreateNote: (date?: Date) => void
 }
 
 function WeekDayColumn({
@@ -86,7 +81,6 @@ function WeekDayColumn({
   notes,
   isToday,
   onSelectNote,
-  onCreateNote,
 }: WeekDayColumnProps) {
   // 设置为可放置区域
   const { setNodeRef, isOver } = useDroppable({
@@ -133,15 +127,6 @@ function WeekDayColumn({
           </div>
         )}
       </div>
-
-      {/* 创建按钮 */}
-      <button
-        onClick={() => onCreateNote(date)}
-        className="w-full mt-3 py-2 text-[13px] text-slate-500 hover:text-[#5E6AD2] hover:bg-[#5E6AD2]/5 rounded-lg transition-colors flex items-center justify-center gap-1"
-      >
-        <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-        创建笔记
-      </button>
     </div>
   )
 }

@@ -13,11 +13,10 @@ import type { Note } from '../../lib/db'
 
 interface CalendarViewProps {
   onSelectNote: (note: Note) => void
-  onCreateNote: (date?: Date) => void
   onBack: () => void
 }
 
-export function CalendarView({ onSelectNote, onCreateNote, onBack }: CalendarViewProps) {
+export function CalendarView({ onSelectNote, onBack }: CalendarViewProps) {
   const calendar = useCalendar()
   const calendarRef = useRef<HTMLDivElement>(null)
 
@@ -106,14 +105,6 @@ export function CalendarView({ onSelectNote, onCreateNote, onBack }: CalendarVie
     }
   }, [calendar.currentDate])
 
-  // 创建笔记时带上日期
-  const handleCreateNote = useCallback(
-    (date?: Date) => {
-      onCreateNote(date)
-    },
-    [onCreateNote]
-  )
-
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="h-full flex flex-col bg-[#F9FBFC] dark:bg-[#0B0D11]">
@@ -149,7 +140,6 @@ export function CalendarView({ onSelectNote, onCreateNote, onBack }: CalendarVie
               dateField={calendar.dateField}
               onSelectDate={calendar.goToDate}
               onSelectNote={onSelectNote}
-              onCreateNote={handleCreateNote}
             />
           )}
 
@@ -159,7 +149,6 @@ export function CalendarView({ onSelectNote, onCreateNote, onBack }: CalendarVie
               notes={calendar.notes || []}
               dateField={calendar.dateField}
               onSelectNote={onSelectNote}
-              onCreateNote={handleCreateNote}
             />
           )}
 
@@ -169,7 +158,6 @@ export function CalendarView({ onSelectNote, onCreateNote, onBack }: CalendarVie
               notes={calendar.notes || []}
               dateField={calendar.dateField}
               onSelectNote={onSelectNote}
-              onCreateNote={handleCreateNote}
               onSetReminder={calendar.setNoteReminder}
               onClearReminder={calendar.clearNoteReminder}
             />

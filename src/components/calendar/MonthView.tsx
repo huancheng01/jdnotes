@@ -12,7 +12,6 @@ interface MonthViewProps {
   dateField: 'createdAt' | 'updatedAt'
   onSelectDate: (date: Date) => void
   onSelectNote: (note: Note) => void
-  onCreateNote: (date?: Date) => void
 }
 
 export function MonthView({
@@ -24,7 +23,6 @@ export function MonthView({
   dateField,
   onSelectDate,
   onSelectNote,
-  onCreateNote,
 }: MonthViewProps) {
   // 按日期分组笔记
   const notesByDate = useMemo(() => {
@@ -151,7 +149,6 @@ export function MonthView({
               showHeatmap={showHeatmap}
               notes={day.notes}
               onClick={() => onSelectDate(day.date)}
-              onCreateNote={() => onCreateNote(day.date)}
             />
           ))}
         </div>
@@ -196,13 +193,7 @@ export function MonthView({
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-[13px] text-slate-400 mb-3">暂无笔记</p>
-              <button
-                onClick={() => onCreateNote(selectedDate)}
-                className="px-4 py-2 text-[13px] font-medium text-[#5E6AD2] hover:bg-[#5E6AD2]/10 rounded-lg transition-colors"
-              >
-                + 创建笔记
-              </button>
+              <p className="text-[13px] text-slate-400">暂无笔记</p>
             </div>
           )}
         </div>

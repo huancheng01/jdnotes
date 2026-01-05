@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Plus, Bell } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { getHeatmapColor } from '../../hooks/useCalendar'
 import type { Note } from '../../lib/db'
@@ -13,7 +13,6 @@ interface CalendarCellProps {
   showHeatmap: boolean
   notes?: Note[]
   onClick: () => void
-  onCreateNote: () => void
 }
 
 export function CalendarCell({
@@ -25,7 +24,6 @@ export function CalendarCell({
   showHeatmap,
   notes = [],
   onClick,
-  onCreateNote,
 }: CalendarCellProps) {
   // 设置为可放置区域
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
@@ -48,26 +46,26 @@ export function CalendarCell({
     <div
       ref={setDroppableRef}
       className={`
-        group relative aspect-square rounded-xl border transition-all cursor-pointer
+        group relative aspect-square rounded-xl border-2 transition-all cursor-pointer
         ${showHeatmap && noteCount > 0
           ? heatmapBg
           : isCurrentMonth
-            ? 'bg-white dark:bg-white/[0.03] border-black/[0.06] dark:border-white/[0.06]'
-            : 'bg-slate-50 dark:bg-white/[0.01] border-transparent'
+            ? 'bg-white dark:bg-white/[0.03]'
+            : 'bg-slate-50 dark:bg-white/[0.01]'
         }
         ${isToday
           ? 'ring-2 ring-[#5E6AD2] ring-offset-2 dark:ring-offset-[#0B0D11]'
           : ''
         }
-        ${isSelected
-          ? 'border-[#5E6AD2] bg-[#5E6AD2]/5'
-          : ''
+        ${isSelected && !isToday
+          ? 'border-emerald-500 bg-emerald-500/10 shadow-md shadow-emerald-500/20'
+          : isSelected && isToday
+            ? 'border-emerald-500 bg-emerald-500/10'
+            : isOver
+              ? 'border-[#5E6AD2] border-dashed bg-[#5E6AD2]/10'
+              : 'border-black/[0.06] dark:border-white/[0.06]'
         }
-        ${isOver
-          ? 'border-[#5E6AD2] border-dashed border-2 bg-[#5E6AD2]/10'
-          : ''
-        }
-        hover:border-[#5E6AD2]/30 hover:shadow-sm
+        hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm
       `}
       onClick={onClick}
     >
@@ -101,20 +99,6 @@ export function CalendarCell({
             {noteCount}
           </span>
         </div>
-      )}
-
-      {/* 快速创建按钮（hover显示） */}
-      {isCurrentMonth && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onCreateNote()
-          }}
-          className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md bg-[#5E6AD2]/10 hover:bg-[#5E6AD2]/20 text-[#5E6AD2]"
-          title="创建笔记"
-        >
-          <Plus className="h-3 w-3" strokeWidth={2} />
-        </button>
       )}
 
       {/* 笔记指示点（最多显示3个） */}

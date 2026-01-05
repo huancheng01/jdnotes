@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Clock, Bell, Plus, Calendar, Tag, X } from 'lucide-react'
+import { Clock, Bell, Calendar, X } from 'lucide-react'
 import { useDroppable } from '@dnd-kit/core'
 import { DraggableNote } from './CalendarCell'
 import { isSameDay, formatCalendarTime } from '../../hooks/useCalendar'
@@ -10,7 +10,6 @@ interface DayViewProps {
   notes: Note[]
   dateField: 'createdAt' | 'updatedAt'
   onSelectNote: (note: Note) => void
-  onCreateNote: (date?: Date) => void
   onSetReminder?: (noteId: number, reminderDate: Date) => void
   onClearReminder?: (noteId: number) => void
 }
@@ -20,7 +19,6 @@ export function DayView({
   notes,
   dateField,
   onSelectNote,
-  onCreateNote,
   onSetReminder,
   onClearReminder,
 }: DayViewProps) {
@@ -67,14 +65,7 @@ export function DayView({
             </div>
           </div>
           <div className="text-right">
-            <div className="text-sm text-slate-400 mb-1">共 {notes.length} 篇笔记</div>
-            <button
-              onClick={() => onCreateNote(currentDate)}
-              className="px-4 py-2 text-sm font-medium text-white bg-[#5E6AD2] hover:bg-[#5E6AD2]/90 rounded-lg transition-colors flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" strokeWidth={2} />
-              创建笔记
-            </button>
+            <div className="text-sm text-slate-400">共 {notes.length} 篇笔记</div>
           </div>
         </div>
       </div>
@@ -98,13 +89,7 @@ export function DayView({
           ) : (
             <div className="text-center py-12 bg-white dark:bg-white/[0.03] rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
               <Calendar className="h-12 w-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" strokeWidth={1} />
-              <div className="text-slate-400 mb-4">这一天还没有笔记</div>
-              <button
-                onClick={() => onCreateNote(currentDate)}
-                className="px-4 py-2 text-sm font-medium text-[#5E6AD2] hover:bg-[#5E6AD2]/10 rounded-lg transition-colors"
-              >
-                创建第一篇笔记
-              </button>
+              <div className="text-slate-400">这一天还没有笔记</div>
             </div>
           )}
         </div>

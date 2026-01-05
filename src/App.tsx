@@ -78,21 +78,6 @@ function App() {
     }
   }
 
-  // 从日历视图创建笔记（带日期）
-  const handleCalendarCreateNote = useCallback(async (date?: Date) => {
-    try {
-      const id = await createNote()
-      setActiveNoteId(Number(id))
-      setLocalTitle('无标题')
-      setLocalContent('')
-      setIsEditing(true)
-      // 切换回收件箱视图
-      setCurrentView('inbox')
-    } catch (error) {
-      console.error('Failed to create note:', error)
-    }
-  }, [createNote])
-
   // 更新已知笔记 ID 集合，并处理删除场景
   useEffect(() => {
     if (!notes) return
@@ -238,7 +223,6 @@ function App() {
           <div className="flex-1 h-full overflow-hidden">
             <CalendarView
               onSelectNote={handleSelectNote}
-              onCreateNote={handleCalendarCreateNote}
               onBack={() => setCurrentView('inbox')}
             />
           </div>
