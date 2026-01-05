@@ -94,12 +94,17 @@ export function useChat({ noteId, noteTitle, noteContent }: UseChatProps) {
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isStreaming || !noteId) return
 
-    setPendingUserMessage(content.trim())
+    const trimmedContent = content.trim()
+    
+    // 同步更新 ref，确保在 onError 回调中能获取到正确的值
+    pendingUserMessageRef.current = trimmedContent
+    
+    setPendingUserMessage(trimmedContent)
     setIsStreamingActive(true)
     streamTextRef.current = ''
     setStreamingContent('')
 
-    await startStream('custom', content.trim(), buildContextPrompt())
+    await startStream('custom', trimmedContent, buildContextPrompt())
   }, [noteId, isStreaming, startStream, buildContextPrompt])
 
   const handleSend = async () => {

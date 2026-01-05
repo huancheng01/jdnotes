@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 import { X, Send, Sparkles, Loader2 } from 'lucide-react'
 import { useChat } from '../../hooks/useChat'
 import { type ChatMessage } from '../../lib/db'
@@ -37,23 +37,38 @@ export function AIChatSidebar({ isOpen, onClose, noteId, noteTitle, noteContent,
   } = useChat({ noteId, noteTitle, noteContent })
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [isMultiLine, setIsMultiLine] = useState(false)
 
   // 滚动到底部
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const scrollToBottom = useCallback((instant = false) => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: instant ? 'auto' : 'smooth'
+      })
+    }
   }, [])
 
   // 当消息更新时滚动到底部
   useEffect(() => {
-    scrollToBottom()
-  }, [messages, streamingContent, scrollToBottom])
+    // 使用 requestAnimationFrame 确保 DOM 更新后再滚动
+    requestAnimationFrame(() => {
+      scrollToBottom()
+    })
+  }, [messages, streamingContent, pendingUserMessage, scrollToBottom])
 
   // 键盘事件处理
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
+      // 发送后重置输入框高度
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto'
+        setIsMultiLine(false)
+      }
     }
   }
 
@@ -62,9 +77,20 @@ export function AIChatSidebar({ isOpen, onClose, noteId, noteTitle, noteContent,
     const textarea = textareaRef.current
     if (textarea) {
       textarea.style.height = 'auto'
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`
+      const newHeight = Math.min(textarea.scrollHeight, 150)
+      textarea.style.height = `${newHeight}px`
+      // 判断是否为多行（超过单行高度约 24px）
+      setIsMultiLine(newHeight > 36)
     }
   }
+
+  // 输入框清空后重置高度
+  useEffect(() => {
+    if (!input && textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      setIsMultiLine(false)
+    }
+  }, [input])
 
   // 复制消息
   const handleCopy = useCallback((content: string) => {
@@ -128,7 +154,7 @@ export function AIChatSidebar({ isOpen, onClose, noteId, noteTitle, noteContent,
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4">
         {displayMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <Sparkles className="h-8 w-8 text-slate-300 dark:text-slate-600 mb-3" strokeWidth={1} />
@@ -165,9 +191,9 @@ export function AIChatSidebar({ isOpen, onClose, noteId, noteTitle, noteContent,
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area - 浮动药丸 */}
+      {/* Input Area - 浮动输入框 */}
       <div className="p-4">
-        <div className="input-pill flex items-end gap-2 px-4 py-3 border border-black/[0.03] dark:border-white/[0.06]">
+        <div className={`input-pill flex items-end gap-2 px-4 py-3 border border-black/[0.03] dark:border-white/[0.06] ${!isMultiLine ? 'single-line' : ''}`}>
           <textarea
             ref={textareaRef}
             value={input}
