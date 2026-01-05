@@ -1,6 +1,29 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Bell, X, ExternalLink } from 'lucide-react'
+import { 
+  isPermissionGranted, 
+  requestPermission, 
+  sendNotification 
+} from '@tauri-apps/plugin-notification'
 import type { Note } from '../../lib/db'
+
+// 发送系统通知
+async function sendSystemNotification(title: string, body: string): Promise<boolean> {
+  try {
+    let permission = await isPermissionGranted()
+    if (!permission) {
+      permission = (await requestPermission()) === 'granted'
+    }
+    
+    if (permission) {
+      await sendNotification({ title, body })
+      return true
+    }
+  } catch (e) {
+    console.warn('Failed to send notification:', e)
+  }
+  return false
+}
 
 interface ReminderNotificationProps {
   reminders: Note[]
@@ -16,11 +39,19 @@ export function ReminderNotification({
   const [visibleReminders, setVisibleReminders] = useState<Note[]>([])
   const [notifiedIds, setNotifiedIds] = useState<Set<number>>(new Set())
 
-  // 请求通知权限
+  // 初始化时请求通知权限
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
+    const initPermission = async () => {
+      try {
+        const granted = await isPermissionGranted()
+        if (!granted) {
+          await requestPermission()
+        }
+      } catch (e) {
+        console.warn('Failed to initialize notification permission:', e)
+      }
     }
+    initPermission()
   }, [])
 
   // 检查新的提醒并显示通知
@@ -40,30 +71,10 @@ export function ReminderNotification({
 
       // 发送系统通知
       newReminders.forEach((note) => {
-        sendBrowserNotification(note)
+        sendSystemNotification('笔记提醒', note.title || '无标题笔记')
       })
     }
   }, [reminders, notifiedIds])
-
-  // 发送浏览器通知
-  const sendBrowserNotification = useCallback((note: Note) => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const notification = new Notification('笔记提醒', {
-        body: note.title || '无标题笔记',
-        icon: '/app-icon.png',
-        tag: `note-reminder-${note.id}`,
-      })
-
-      notification.onclick = () => {
-        window.focus()
-        onSelectNote(note)
-        handleDismiss(note.id)
-      }
-
-      // 5秒后自动关闭
-      setTimeout(() => notification.close(), 5000)
-    }
-  }, [onSelectNote])
 
   // 关闭提醒
   const handleDismiss = useCallback((noteId: number) => {
@@ -163,64 +174,6 @@ export function ReminderNotification({
           animation: slide-in 0.3s ease-out;
         }
       `}</style>
-    </div>
-  )
-}
-
-// 辅助组件：提醒设置面板（可在设置页面使用）
-export function ReminderSettings() {
-  const [permission, setPermission] = useState<NotificationPermission>(
-    'Notification' in window ? Notification.permission : 'denied'
-  )
-
-  const requestPermission = async () => {
-    if ('Notification' in window) {
-      const result = await Notification.requestPermission()
-      setPermission(result)
-    }
-  }
-
-  return (
-    <div className="p-4 bg-white dark:bg-white/[0.03] rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
-      <div className="flex items-center gap-3 mb-3">
-        <Bell className="h-5 w-5 text-slate-400" strokeWidth={1.5} />
-        <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-          笔记提醒
-        </h3>
-      </div>
-
-      <p className="text-[13px] text-slate-500 mb-4">
-        启用浏览器通知，在设定的时间收到笔记提醒。
-      </p>
-
-      <div className="flex items-center justify-between">
-        <span className="text-[13px] text-slate-600 dark:text-slate-400">
-          通知权限状态
-        </span>
-        {permission === 'granted' ? (
-          <span className="text-[13px] text-green-600 dark:text-green-400 flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            已启用
-          </span>
-        ) : permission === 'denied' ? (
-          <span className="text-[13px] text-red-600 dark:text-red-400">
-            已拒绝
-          </span>
-        ) : (
-          <button
-            onClick={requestPermission}
-            className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#5E6AD2] hover:bg-[#5E6AD2]/90 rounded-lg transition-colors"
-          >
-            启用通知
-          </button>
-        )}
-      </div>
-
-      {permission === 'denied' && (
-        <p className="mt-3 text-[12px] text-slate-400">
-          请在浏览器设置中允许本站发送通知。
-        </p>
-      )}
     </div>
   )
 }

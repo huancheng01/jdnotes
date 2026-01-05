@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { initializeDefaultNotes, type Note } from './lib/db'
-import { useAutoSave, useNotes } from './hooks'
+import { initializeDefaultNotes, noteOperations, type Note } from './lib/db'
+import { useAutoSave, useNotes, useCalendar } from './hooks'
 import { CommandMenu } from './components/modals/CommandMenu'
 import { Sidebar, NoteList, MainContent } from './components/layout'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { SettingsModal } from './components/modals/SettingsModal'
 import { AIChatSidebar } from './components/ai/AIChatSidebar'
-import { CalendarView } from './components/calendar'
+import { CalendarView, ReminderNotification } from './components/calendar'
 
 // 视图类型
 type ViewType = 'inbox' | 'favorites' | 'trash' | 'calendar' | `tag-${string}`
@@ -37,6 +37,24 @@ function App() {
     toggleFavorite,
     updateTags,
   } = useNotes(searchQuery, currentView)
+
+  // 使用 useCalendar 获取提醒相关功能
+  const calendar = useCalendar()
+
+  // 设置笔记提醒
+  const handleSetReminder = useCallback(async (noteId: number, reminderDate: Date) => {
+    await noteOperations.setReminder(noteId, reminderDate)
+  }, [])
+
+  // 清除笔记提醒
+  const handleClearReminder = useCallback(async (noteId: number) => {
+    await noteOperations.clearReminder(noteId)
+  }, [])
+
+  // 提醒通知关闭时清除提醒
+  const handleDismissReminder = useCallback(async (noteId: number) => {
+    await noteOperations.clearReminder(noteId)
+  }, [])
 
   // 切换 AI 聊天侧栏
   const toggleChat = useCallback(() => {
@@ -258,6 +276,8 @@ function App() {
                 onToggleChat={toggleChat}
                 onCreateNote={handleCreateNote}
                 onContentInserted={handleContentInserted}
+                onSetReminder={handleSetReminder}
+                onClearReminder={handleClearReminder}
               />
 
               {/* AI 聊天侧栏 */}
@@ -273,6 +293,13 @@ function App() {
           </>
         )}
       </div>
+
+      {/* 提醒通知组件 */}
+      <ReminderNotification
+        reminders={calendar.upcomingReminders || []}
+        onSelectNote={handleSelectNote}
+        onDismiss={handleDismissReminder}
+      />
     </>
   )
 }
