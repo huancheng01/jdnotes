@@ -4,7 +4,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import CodeBlock from '@tiptap/extension-code-block'
 import Image from '@tiptap/extension-image'
 import { Markdown } from 'tiptap-markdown'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { CodeBlockComponent } from './CodeBlockComponent'
 import { ResizableImage } from './ResizableImage'
 import { AIContextMenu } from '../ai/AIContextMenu'
@@ -32,7 +32,7 @@ interface EditorProps {
 export function Editor({
   title,
   content,
-  tags = [],
+  tags: _tags = [],
   isEditing,
   createdAt,
   updatedAt,

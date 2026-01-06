@@ -1,4 +1,12 @@
-import Dexie, { type EntityTable } from 'dexie'
+/**
+ * SQLite 数据库实现 (使用 tauri-plugin-sql)
+ * 替代原有的 IndexedDB (Dexie.js) 实现
+ */
+import Database from '@tauri-apps/plugin-sql'
+import { invoke } from '@tauri-apps/api/core'
+
+// 数据库实例
+let database: Database | null = null
 
 // 笔记数据类型
 export interface Note {
@@ -15,6 +23,20 @@ export interface Note {
   reminderEnabled?: number // 0 或 1，是否启用提醒
 }
 
+// SQLite 返回的原始行数据类型
+interface NoteRow {
+  id: number
+  title: string
+  content: string
+  tags: string // JSON 字符串
+  is_favorite: number
+  is_deleted: number
+  created_at: string
+  updated_at: string
+  reminder_date: string | null
+  reminder_enabled: number
+}
+
 // 聊天消息数据类型
 export interface ChatMessage {
   id: number
@@ -24,93 +46,91 @@ export interface ChatMessage {
   timestamp: Date
 }
 
-// 数据库类
-class NoteAppDB extends Dexie {
-  notes!: EntityTable<Note, 'id'>
-  chatMessages!: EntityTable<ChatMessage, 'id'>
+// SQLite 返回的聊天消息原始数据
+interface ChatMessageRow {
+  id: number
+  note_id: number
+  role: string
+  content: string
+  timestamp: string
+}
 
-  constructor() {
-    super('NoteAppDB')
-
-    // 版本 1：初始结构
-    this.version(1).stores({
-      notes: '++id, title, createdAt, updatedAt',
-    })
-
-    // 版本 2：添加 isFavorite 和 isDeleted 字段
-    this.version(2)
-      .stores({
-        notes: '++id, title, isFavorite, isDeleted, createdAt, updatedAt',
-      })
-      .upgrade((tx) => {
-        // 为现有笔记添加默认值
-        return tx
-          .table('notes')
-          .toCollection()
-          .modify((note) => {
-            note.isFavorite = 0
-            note.isDeleted = 0
-          })
-      })
-
-    // 版本 3：添加 tags 字段（MultiEntry 索引）
-    this.version(3)
-      .stores({
-        notes: '++id, title, *tags, isFavorite, isDeleted, createdAt, updatedAt',
-      })
-      .upgrade((tx) => {
-        return tx
-          .table('notes')
-          .toCollection()
-          .modify((note) => {
-            note.tags = []
-          })
-      })
-
-    // 版本 4：添加 chatMessages 表
-    this.version(4).stores({
-      notes: '++id, title, *tags, isFavorite, isDeleted, createdAt, updatedAt',
-      chatMessages: '++id, noteId, timestamp',
-    })
-
-    // 版本 5：添加提醒字段索引
-    this.version(5)
-      .stores({
-        notes: '++id, title, *tags, isFavorite, isDeleted, createdAt, updatedAt, reminderDate, reminderEnabled',
-        chatMessages: '++id, noteId, timestamp',
-      })
-      .upgrade((tx) => {
-        return tx
-          .table('notes')
-          .toCollection()
-          .modify((note) => {
-            note.reminderDate = undefined
-            note.reminderEnabled = 0
-          })
-      })
+/**
+ * 将 SQLite 行数据转换为 Note 对象
+ */
+function rowToNote(row: NoteRow): Note {
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    tags: JSON.parse(row.tags || '[]'),
+    isFavorite: row.is_favorite,
+    isDeleted: row.is_deleted,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+    reminderDate: row.reminder_date ? new Date(row.reminder_date) : undefined,
+    reminderEnabled: row.reminder_enabled,
   }
 }
 
-// 创建数据库实例
-export const db = new NoteAppDB()
+/**
+ * 将 SQLite 行数据转换为 ChatMessage 对象
+ */
+function rowToChatMessage(row: ChatMessageRow): ChatMessage {
+  return {
+    id: row.id,
+    noteId: row.note_id,
+    role: row.role as 'user' | 'assistant',
+    content: row.content,
+    timestamp: new Date(row.timestamp),
+  }
+}
+
+/**
+ * 获取数据库实例
+ */
+async function getDatabase(): Promise<Database> {
+  if (database) return database
+  
+  // 获取数据库 URL
+  const dbUrl = await invoke<string>('get_database_url')
+  database = await Database.load(dbUrl)
+  return database
+}
+
+/**
+ * 初始化数据库连接
+ */
+export async function initDatabase(): Promise<void> {
+  await getDatabase()
+}
 
 // 防止重复初始化的标志
 let isInitializing = false
 
-// 初始化默认数据（仅在数据库为空时）
-export async function initializeDefaultNotes() {
-  // 防止并发调用
+/**
+ * 初始化默认数据（仅在数据库为空时）
+ */
+export async function initializeDefaultNotes(): Promise<void> {
   if (isInitializing) return
   isInitializing = true
 
   try {
-    const count = await db.notes.count()
+    const db = await getDatabase()
+    const result = await db.select<[{ count: number }]>('SELECT COUNT(*) as count FROM notes')
+    const count = result[0]?.count || 0
+    
     if (count > 0) return
-    const now = new Date()
-    await db.notes.bulkAdd([
-      {
-        title: '欢迎使用 JD Notes',
-        content: `欢迎使用 JD Notes！这是一个 Linear 风格的笔记应用。
+
+    const now = new Date().toISOString()
+    
+    // 插入欢迎笔记
+    await db.execute(
+      `INSERT INTO notes (title, content, tags, is_favorite, is_deleted, created_at, updated_at, reminder_enabled)
+       VALUES (?, ?, ?, 0, 0, ?, ?, 0)`,
+      [
+        '欢迎使用 JD Notes',
+        `欢迎使用 JD Notes！这是一个 Linear 风格的笔记应用。
 
 ## 功能特性
 
@@ -121,6 +141,7 @@ export async function initializeDefaultNotes() {
 - **斜杠命令**：快速调用 AI 模板
 - **日历视图**：按时间维度管理笔记
 - **笔记提醒**：设置提醒，到期通知
+- **SQLite 存储**：数据可备份迁移
 
 ## 快速开始
 
@@ -130,15 +151,19 @@ export async function initializeDefaultNotes() {
 4. 点击侧栏 **📅 日历** 查看时间轴
 
 开始创建你的第一个笔记吧！`,
-        tags: ['入门'],
-        isFavorite: 0,
-        isDeleted: 0,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        title: '快捷键指南',
-        content: `## 编辑器快捷键
+        '["入门"]',
+        now,
+        now
+      ]
+    )
+
+    // 插入快捷键指南
+    await db.execute(
+      `INSERT INTO notes (title, content, tags, is_favorite, is_deleted, created_at, updated_at, reminder_enabled)
+       VALUES (?, ?, ?, 0, 0, ?, ?, 0)`,
+      [
+        '快捷键指南',
+        `## 编辑器快捷键
 
 - \`Ctrl+B\` - 粗体
 - \`Ctrl+I\` - 斜体
@@ -176,13 +201,11 @@ export async function initializeDefaultNotes() {
 - 快捷选项：30分钟后、1小时后、3小时后、明天此时
 - 自定义时间：选择任意时间
 - 到期通知：浏览器弹窗 + 系统通知`,
-        tags: ['入门', '快捷键'],
-        isFavorite: 0,
-        isDeleted: 0,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ])
+        '["入门", "快捷键"]',
+        now,
+        now
+      ]
+    )
   } finally {
     isInitializing = false
   }
@@ -192,16 +215,16 @@ export async function initializeDefaultNotes() {
 export const noteOperations = {
   // 创建新笔记
   async create(title: string = '无标题', content: string = ''): Promise<number> {
-    const now = new Date()
-    return await db.notes.add({
-      title,
-      content,
-      tags: [],
-      isFavorite: 0,
-      isDeleted: 0,
-      createdAt: now,
-      updatedAt: now,
-    })
+    const db = await getDatabase()
+    const now = new Date().toISOString()
+    
+    const result = await db.execute(
+      `INSERT INTO notes (title, content, tags, is_favorite, is_deleted, created_at, updated_at, reminder_enabled)
+       VALUES (?, ?, '[]', 0, 0, ?, ?, 0)`,
+      [title, content, now, now]
+    )
+    
+    return result.lastInsertId ?? 0
   },
 
   // 更新笔记
@@ -209,64 +232,107 @@ export const noteOperations = {
     id: number,
     data: Partial<Pick<Note, 'title' | 'content'>>
   ): Promise<void> {
-    await db.notes.update(id, {
-      ...data,
-      updatedAt: new Date(),
-    })
+    const db = await getDatabase()
+    const now = new Date().toISOString()
+    
+    const updates: string[] = ['updated_at = ?']
+    const params: (string | number)[] = [now]
+    
+    if (data.title !== undefined) {
+      updates.push('title = ?')
+      params.push(data.title)
+    }
+    
+    if (data.content !== undefined) {
+      updates.push('content = ?')
+      params.push(data.content)
+    }
+    
+    params.push(id)
+    
+    await db.execute(
+      `UPDATE notes SET ${updates.join(', ')} WHERE id = ?`,
+      params
+    )
   },
 
   // 切换收藏状态
   async toggleFavorite(id: number): Promise<void> {
-    const note = await db.notes.get(id)
-    if (note) {
-      await db.notes.update(id, {
-        isFavorite: note.isFavorite === 1 ? 0 : 1,
-        updatedAt: new Date(),
-      })
-    }
+    const db = await getDatabase()
+    const now = new Date().toISOString()
+    
+    await db.execute(
+      `UPDATE notes SET is_favorite = 1 - is_favorite, updated_at = ? WHERE id = ?`,
+      [now, id]
+    )
   },
 
   // 软删除（移到废纸篓）
   async softDelete(id: number): Promise<void> {
-    await db.notes.update(id, {
-      isDeleted: 1,
-      updatedAt: new Date(),
-    })
+    const db = await getDatabase()
+    const now = new Date().toISOString()
+    
+    await db.execute(
+      `UPDATE notes SET is_deleted = 1, updated_at = ? WHERE id = ?`,
+      [now, id]
+    )
   },
 
   // 恢复笔记
   async restore(id: number): Promise<void> {
-    await db.notes.update(id, {
-      isDeleted: 0,
-      updatedAt: new Date(),
-    })
+    const db = await getDatabase()
+    const now = new Date().toISOString()
+    
+    await db.execute(
+      `UPDATE notes SET is_deleted = 0, updated_at = ? WHERE id = ?`,
+      [now, id]
+    )
   },
 
   // 彻底删除
   async permanentDelete(id: number): Promise<void> {
-    await db.notes.delete(id)
+    const db = await getDatabase()
+    
+    // 先删除相关的聊天消息
+    await db.execute('DELETE FROM chat_messages WHERE note_id = ?', [id])
+    // 再删除笔记
+    await db.execute('DELETE FROM notes WHERE id = ?', [id])
   },
 
   // 获取单个笔记
   async get(id: number): Promise<Note | undefined> {
-    return await db.notes.get(id)
+    const db = await getDatabase()
+    const rows = await db.select<NoteRow[]>(
+      'SELECT * FROM notes WHERE id = ?',
+      [id]
+    )
+    return rows.length > 0 ? rowToNote(rows[0]) : undefined
   },
 
   // 更新标签
   async updateTags(id: number, tags: string[]): Promise<void> {
-    await db.notes.update(id, {
-      tags,
-      updatedAt: new Date(),
-    })
+    const db = await getDatabase()
+    const now = new Date().toISOString()
+    
+    await db.execute(
+      `UPDATE notes SET tags = ?, updated_at = ? WHERE id = ?`,
+      [JSON.stringify(tags), now, id]
+    )
   },
 
   // 获取所有唯一标签
   async getAllTags(): Promise<string[]> {
-    const notes = await db.notes.where('isDeleted').equals(0).toArray()
+    const db = await getDatabase()
+    const rows = await db.select<{ tags: string }[]>(
+      'SELECT tags FROM notes WHERE is_deleted = 0'
+    )
+    
     const tagSet = new Set<string>()
-    notes.forEach((note) => {
-      note.tags?.forEach((tag) => tagSet.add(tag))
+    rows.forEach((row: { tags: string }) => {
+      const tags: string[] = JSON.parse(row.tags || '[]')
+      tags.forEach((tag: string) => tagSet.add(tag))
     })
+    
     return Array.from(tagSet).sort()
   },
 
@@ -278,16 +344,17 @@ export const noteOperations = {
     endDate: Date,
     dateField: 'createdAt' | 'updatedAt' = 'createdAt'
   ): Promise<Note[]> {
-    const notes = await db.notes
-      .where(dateField)
-      .between(startDate, endDate, true, true)
-      .and((note) => note.isDeleted === 0)
-      .toArray()
-    return notes.sort((a, b) => {
-      const dateA = a[dateField] as Date
-      const dateB = b[dateField] as Date
-      return dateA.getTime() - dateB.getTime()
-    })
+    const db = await getDatabase()
+    const column = dateField === 'createdAt' ? 'created_at' : 'updated_at'
+    
+    const rows = await db.select<NoteRow[]>(
+      `SELECT * FROM notes 
+       WHERE ${column} >= ? AND ${column} <= ? AND is_deleted = 0 
+       ORDER BY ${column} ASC`,
+      [startDate.toISOString(), endDate.toISOString()]
+    )
+    
+    return rows.map(rowToNote)
   },
 
   // 获取指定日期的笔记
@@ -323,57 +390,70 @@ export const noteOperations = {
 
   // 更新笔记的创建时间（用于拖拽功能）
   async updateCreatedAt(id: number, newDate: Date): Promise<void> {
-    await db.notes.update(id, {
-      createdAt: newDate,
-      updatedAt: new Date(),
-    })
+    const db = await getDatabase()
+    const now = new Date().toISOString()
+    
+    await db.execute(
+      `UPDATE notes SET created_at = ?, updated_at = ? WHERE id = ?`,
+      [newDate.toISOString(), now, id]
+    )
   },
 
   // ============= 提醒相关方法 =============
 
   // 设置提醒
   async setReminder(id: number, reminderDate: Date): Promise<void> {
-    await db.notes.update(id, {
-      reminderDate,
-      reminderEnabled: 1,
-      updatedAt: new Date(),
-    })
+    const db = await getDatabase()
+    const now = new Date().toISOString()
+    
+    await db.execute(
+      `UPDATE notes SET reminder_date = ?, reminder_enabled = 1, updated_at = ? WHERE id = ?`,
+      [reminderDate.toISOString(), now, id]
+    )
   },
 
   // 清除提醒
   async clearReminder(id: number): Promise<void> {
-    await db.notes.update(id, {
-      reminderDate: undefined,
-      reminderEnabled: 0,
-      updatedAt: new Date(),
-    })
+    const db = await getDatabase()
+    const now = new Date().toISOString()
+    
+    await db.execute(
+      `UPDATE notes SET reminder_date = NULL, reminder_enabled = 0, updated_at = ? WHERE id = ?`,
+      [now, id]
+    )
   },
 
   // 获取即将到期的提醒
   async getUpcomingReminders(withinMinutes: number = 60): Promise<Note[]> {
+    const db = await getDatabase()
     const now = new Date()
     const future = new Date(now.getTime() + withinMinutes * 60 * 1000)
 
-    const notes = await db.notes
-      .where('reminderEnabled')
-      .equals(1)
-      .and((note) => note.isDeleted === 0)
-      .toArray()
+    const rows = await db.select<NoteRow[]>(
+      `SELECT * FROM notes 
+       WHERE reminder_enabled = 1 
+       AND is_deleted = 0 
+       AND reminder_date IS NOT NULL 
+       AND reminder_date >= ? 
+       AND reminder_date <= ?
+       ORDER BY reminder_date ASC`,
+      [now.toISOString(), future.toISOString()]
+    )
 
-    return notes.filter((note) => {
-      if (!note.reminderDate) return false
-      const reminderTime = new Date(note.reminderDate).getTime()
-      return reminderTime >= now.getTime() && reminderTime <= future.getTime()
-    })
+    return rows.map(rowToNote)
   },
 
   // 获取所有启用提醒的笔记
   async getNotesWithReminders(): Promise<Note[]> {
-    return await db.notes
-      .where('reminderEnabled')
-      .equals(1)
-      .and((note) => note.isDeleted === 0)
-      .toArray()
+    const db = await getDatabase()
+    
+    const rows = await db.select<NoteRow[]>(
+      `SELECT * FROM notes 
+       WHERE reminder_enabled = 1 AND is_deleted = 0 
+       ORDER BY reminder_date ASC`
+    )
+
+    return rows.map(rowToNote)
   },
 }
 
@@ -389,43 +469,351 @@ export function formatDateKey(date: Date): string {
 export const chatOperations = {
   // 添加消息
   async add(noteId: number, role: 'user' | 'assistant', content: string): Promise<number> {
-    return await db.chatMessages.add({
-      noteId,
-      role,
-      content,
-      timestamp: new Date(),
-    })
+    const db = await getDatabase()
+    const now = new Date().toISOString()
+    
+    const result = await db.execute(
+      `INSERT INTO chat_messages (note_id, role, content, timestamp) VALUES (?, ?, ?, ?)`,
+      [noteId, role, content, now]
+    )
+    
+    return result.lastInsertId ?? 0
   },
 
   // 获取笔记的所有消息
   async getByNoteId(noteId: number): Promise<ChatMessage[]> {
-    return await db.chatMessages
-      .where('noteId')
-      .equals(noteId)
-      .sortBy('timestamp')
+    const db = await getDatabase()
+    
+    const rows = await db.select<ChatMessageRow[]>(
+      `SELECT * FROM chat_messages WHERE note_id = ? ORDER BY timestamp ASC`,
+      [noteId]
+    )
+    
+    return rows.map(rowToChatMessage)
   },
 
   // 更新消息内容
   async update(id: number, content: string): Promise<void> {
-    await db.chatMessages.update(id, { content })
+    const db = await getDatabase()
+    
+    await db.execute(
+      `UPDATE chat_messages SET content = ? WHERE id = ?`,
+      [content, id]
+    )
   },
 
   // 删除单条消息
   async delete(id: number): Promise<void> {
-    await db.chatMessages.delete(id)
+    const db = await getDatabase()
+    
+    await db.execute('DELETE FROM chat_messages WHERE id = ?', [id])
   },
 
   // 删除某条消息之后的所有消息
   async deleteAfter(noteId: number, timestamp: Date): Promise<void> {
-    await db.chatMessages
-      .where('noteId')
-      .equals(noteId)
-      .filter((msg) => msg.timestamp > timestamp)
-      .delete()
+    const db = await getDatabase()
+    
+    await db.execute(
+      `DELETE FROM chat_messages WHERE note_id = ? AND timestamp > ?`,
+      [noteId, timestamp.toISOString()]
+    )
   },
 
   // 清空笔记的所有消息
   async clearByNoteId(noteId: number): Promise<void> {
-    await db.chatMessages.where('noteId').equals(noteId).delete()
+    const db = await getDatabase()
+    
+    await db.execute('DELETE FROM chat_messages WHERE note_id = ?', [noteId])
   },
+}
+
+// ============= 数据库管理功能 =============
+
+export const dbOperations = {
+  // 获取数据库路径
+  async getPath(): Promise<string> {
+    return await invoke<string>('get_database_path')
+  },
+
+  // 获取数据库信息
+  async getInfo(): Promise<{
+    path: string
+    exists: boolean
+    size: number
+    size_formatted: string
+    is_custom: boolean
+  }> {
+    return await invoke('get_database_info')
+  },
+
+  // 复制数据库到新位置
+  async copyTo(newPath: string): Promise<void> {
+    await invoke('copy_database_to', { newPath })
+  },
+
+  // 更改数据库存储位置
+  async changeLocation(newDir: string): Promise<string> {
+    return await invoke<string>('change_database_location', { newDir })
+  },
+
+  // 导出数据为 JSON
+  async exportJSON(): Promise<string> {
+    const db = await getDatabase()
+    
+    const notes = await db.select<NoteRow[]>('SELECT * FROM notes')
+    const messages = await db.select<ChatMessageRow[]>('SELECT * FROM chat_messages')
+    
+    const exportData = {
+      version: '1.0',
+      exported_at: new Date().toISOString(),
+      notes: notes.map(rowToNote),
+      chat_messages: messages.map(rowToChatMessage),
+    }
+    
+    return JSON.stringify(exportData, null, 2)
+  },
+
+  // 从 JSON 导入数据
+  async importJSON(jsonData: string): Promise<{ notes: number; messages: number }> {
+    const db = await getDatabase()
+    const data = JSON.parse(jsonData)
+    
+    let notesImported = 0
+    let messagesImported = 0
+    
+    // 导入笔记
+    if (data.notes && Array.isArray(data.notes)) {
+      for (const note of data.notes) {
+        await db.execute(
+          `INSERT INTO notes (title, content, tags, is_favorite, is_deleted, created_at, updated_at, reminder_date, reminder_enabled)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            note.title,
+            note.content,
+            JSON.stringify(note.tags || []),
+            note.isFavorite || 0,
+            note.isDeleted || 0,
+            note.createdAt instanceof Date ? note.createdAt.toISOString() : note.createdAt,
+            note.updatedAt instanceof Date ? note.updatedAt.toISOString() : note.updatedAt,
+            note.reminderDate ? (note.reminderDate instanceof Date ? note.reminderDate.toISOString() : note.reminderDate) : null,
+            note.reminderEnabled || 0
+          ]
+        )
+        notesImported++
+      }
+    }
+    
+    // 导入聊天消息
+    if (data.chat_messages && Array.isArray(data.chat_messages)) {
+      for (const msg of data.chat_messages) {
+        await db.execute(
+          `INSERT INTO chat_messages (note_id, role, content, timestamp) VALUES (?, ?, ?, ?)`,
+          [
+            msg.noteId,
+            msg.role,
+            msg.content,
+            msg.timestamp instanceof Date ? msg.timestamp.toISOString() : msg.timestamp
+          ]
+        )
+        messagesImported++
+      }
+    }
+    
+    return { notes: notesImported, messages: messagesImported }
+  },
+}
+
+// ============= 兼容旧 Dexie API 的数据库对象 =============
+// 注意：SQLite 不支持 Dexie 的实时查询，需要手动刷新
+
+export const db = {
+  notes: {
+    // 兼容 useLiveQuery 的查询方法
+    orderBy: (field: string) => ({
+      reverse: () => ({
+        filter: (fn: (note: Note) => boolean) => ({
+          toArray: async (): Promise<Note[]> => {
+            const database = await getDatabase()
+            const column = field === 'updatedAt' ? 'updated_at' : field === 'createdAt' ? 'created_at' : field
+            const rows = await database.select<NoteRow[]>(
+              `SELECT * FROM notes ORDER BY ${column} DESC`
+            )
+            return rows.map(rowToNote).filter(fn)
+          }
+        }),
+        toArray: async (): Promise<Note[]> => {
+          const database = await getDatabase()
+          const column = field === 'updatedAt' ? 'updated_at' : field === 'createdAt' ? 'created_at' : field
+          const rows = await database.select<NoteRow[]>(
+            `SELECT * FROM notes ORDER BY ${column} DESC`
+          )
+          return rows.map(rowToNote)
+        }
+      })
+    }),
+    where: (field: string) => ({
+      equals: (value: number | string) => ({
+        and: (fn: (note: Note) => boolean) => ({
+          sortBy: async (sortField: string): Promise<Note[]> => {
+            const database = await getDatabase()
+            const column = field === 'isDeleted' ? 'is_deleted' : field === 'isFavorite' ? 'is_favorite' : field
+            const rows = await database.select<NoteRow[]>(
+              `SELECT * FROM notes WHERE ${column} = ?`,
+              [value]
+            )
+            return rows.map(rowToNote).filter(fn).sort((a: Note, b: Note) => {
+              const aVal = a[sortField as keyof Note]
+              const bVal = b[sortField as keyof Note]
+              if (aVal instanceof Date && bVal instanceof Date) {
+                return bVal.getTime() - aVal.getTime()
+              }
+              return 0
+            })
+          },
+          toArray: async (): Promise<Note[]> => {
+            const database = await getDatabase()
+            const column = field === 'isDeleted' ? 'is_deleted' : field === 'isFavorite' ? 'is_favorite' : field
+            const rows = await database.select<NoteRow[]>(
+              `SELECT * FROM notes WHERE ${column} = ?`,
+              [value]
+            )
+            return rows.map(rowToNote).filter(fn)
+          }
+        }),
+        toArray: async (): Promise<Note[]> => {
+          const database = await getDatabase()
+          const column = field === 'isDeleted' ? 'is_deleted' : field === 'isFavorite' ? 'is_favorite' : field
+          const rows = await database.select<NoteRow[]>(
+            `SELECT * FROM notes WHERE ${column} = ?`,
+            [value]
+          )
+          return rows.map(rowToNote)
+        }
+      }),
+      anyOf: (values: string[]) => ({
+        and: (fn: (note: Note) => boolean) => ({
+          toArray: async (): Promise<Note[]> => {
+            const database = await getDatabase()
+            // 对于 tags 搜索，需要特殊处理
+            const rows = await database.select<NoteRow[]>('SELECT * FROM notes WHERE is_deleted = 0')
+            return rows.map(rowToNote).filter((note: Note) => {
+              const hasTag = values.some((tag: string) => note.tags.includes(tag))
+              return hasTag && fn(note)
+            })
+          }
+        })
+      }),
+      between: (start: Date, end: Date, includeStart?: boolean, includeEnd?: boolean) => ({
+        and: (fn: (note: Note) => boolean) => ({
+          toArray: async (): Promise<Note[]> => {
+            const database = await getDatabase()
+            const column = field === 'createdAt' ? 'created_at' : field === 'updatedAt' ? 'updated_at' : field
+            const startOp = includeStart ? '>=' : '>'
+            const endOp = includeEnd ? '<=' : '<'
+            const rows = await database.select<NoteRow[]>(
+              `SELECT * FROM notes WHERE ${column} ${startOp} ? AND ${column} ${endOp} ?`,
+              [start.toISOString(), end.toISOString()]
+            )
+            return rows.map(rowToNote).filter(fn)
+          }
+        })
+      })
+    }),
+    get: async (id: number): Promise<Note | undefined> => {
+      return await noteOperations.get(id)
+    },
+    count: async (): Promise<number> => {
+      const database = await getDatabase()
+      const result = await database.select<[{ count: number }]>('SELECT COUNT(*) as count FROM notes')
+      return result[0]?.count || 0
+    },
+    update: async (id: number, data: Partial<Note>): Promise<void> => {
+      const database = await getDatabase()
+      const now = new Date().toISOString()
+      
+      const updates: string[] = ['updated_at = ?']
+      const params: (string | number | null)[] = [now]
+      
+      if (data.title !== undefined) {
+        updates.push('title = ?')
+        params.push(data.title)
+      }
+      if (data.content !== undefined) {
+        updates.push('content = ?')
+        params.push(data.content)
+      }
+      if (data.tags !== undefined) {
+        updates.push('tags = ?')
+        params.push(JSON.stringify(data.tags))
+      }
+      if (data.isFavorite !== undefined) {
+        updates.push('is_favorite = ?')
+        params.push(data.isFavorite)
+      }
+      if (data.isDeleted !== undefined) {
+        updates.push('is_deleted = ?')
+        params.push(data.isDeleted)
+      }
+      if (data.reminderDate !== undefined) {
+        updates.push('reminder_date = ?')
+        params.push(data.reminderDate ? data.reminderDate.toISOString() : null)
+      }
+      if (data.reminderEnabled !== undefined) {
+        updates.push('reminder_enabled = ?')
+        params.push(data.reminderEnabled)
+      }
+      
+      params.push(id)
+      
+      await database.execute(
+        `UPDATE notes SET ${updates.join(', ')} WHERE id = ?`,
+        params
+      )
+    }
+  },
+  chatMessages: {
+    where: (field: string) => ({
+      equals: (value: number) => ({
+        sortBy: async (sortField: string): Promise<ChatMessage[]> => {
+          const database = await getDatabase()
+          const column = field === 'noteId' ? 'note_id' : field
+          const sortColumn = sortField === 'timestamp' ? 'timestamp' : sortField
+          const rows = await database.select<ChatMessageRow[]>(
+            `SELECT * FROM chat_messages WHERE ${column} = ? ORDER BY ${sortColumn} ASC`,
+            [value]
+          )
+          return rows.map(rowToChatMessage)
+        },
+        filter: (fn: (msg: ChatMessage) => boolean) => ({
+          delete: async (): Promise<void> => {
+            const database = await getDatabase()
+            const column = field === 'noteId' ? 'note_id' : field
+            // 先获取要删除的消息
+            const rows = await database.select<ChatMessageRow[]>(
+              `SELECT * FROM chat_messages WHERE ${column} = ?`,
+              [value]
+            )
+            const toDelete = rows.map(rowToChatMessage).filter(fn)
+            // 删除符合条件的消息
+            for (const msg of toDelete) {
+              await database.execute('DELETE FROM chat_messages WHERE id = ?', [msg.id])
+            }
+          }
+        })
+      })
+    }),
+    update: async (id: number, data: Partial<ChatMessage>): Promise<void> => {
+      const database = await getDatabase()
+      if (data.content !== undefined) {
+        await database.execute(
+          'UPDATE chat_messages SET content = ? WHERE id = ?',
+          [data.content, id]
+        )
+      }
+    },
+    delete: async (id: number): Promise<void> => {
+      const database = await getDatabase()
+      await database.execute('DELETE FROM chat_messages WHERE id = ?', [id])
+    }
+  }
 }

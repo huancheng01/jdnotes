@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
-import { X, Eye, EyeOff, Bell } from 'lucide-react'
+import { X, Eye, EyeOff, Bell, Database, Download, Upload, FolderOpen, HardDrive, Settings2 } from 'lucide-react'
 import { useSettings } from '../../hooks/useSettings'
-import { 
-  isPermissionGranted, 
-  requestPermission, 
-  sendNotification 
+import { dbOperations } from '../../lib/db'
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification
 } from '@tauri-apps/plugin-notification'
+import { save, open as openDialog } from '@tauri-apps/plugin-dialog'
+import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs'
+import { revealItemInDir } from '@tauri-apps/plugin-opener'
 
 interface SettingsModalProps {
   open: boolean
@@ -17,6 +21,17 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [showApiKey, setShowApiKey] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<'granted' | 'denied' | 'default'>('default')
   const [isCheckingPermission, setIsCheckingPermission] = useState(true)
+  
+  // 数据库管理状态
+  const [dbInfo, setDbInfo] = useState<{
+    path: string
+    exists: boolean
+    size: number
+    size_formatted: string
+    is_custom: boolean
+  } | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [operationMessage, setOperationMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null)
 
   // 检查通知权限状态
   useEffect(() => {
@@ -34,8 +49,19 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     
     if (open) {
       checkPermission()
+      loadDatabaseInfo()
     }
   }, [open])
+
+  // 加载数据库信息
+  const loadDatabaseInfo = async () => {
+    try {
+      const info = await dbOperations.getInfo()
+      setDbInfo(info)
+    } catch (e) {
+      console.warn('Failed to load database info:', e)
+    }
+  }
 
   // 请求通知权限
   const handleRequestPermission = async () => {
@@ -53,6 +79,104 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     } catch (e) {
       console.warn('Failed to request notification permission:', e)
       setNotificationPermission('denied')
+    }
+  }
+
+  // 显示操作消息
+  const showMessage = (type: 'success' | 'error' | 'warning', text: string) => {
+    setOperationMessage({ type, text })
+    setTimeout(() => setOperationMessage(null), 5000)
+  }
+
+  // 导出数据
+  const handleExport = async () => {
+    setIsLoading(true)
+    try {
+      const jsonData = await dbOperations.exportJSON()
+      
+      const filePath = await save({
+        filters: [{
+          name: 'JSON',
+          extensions: ['json']
+        }],
+        defaultPath: `jdnotes-backup-${new Date().toISOString().split('T')[0]}.json`
+      })
+      
+      if (filePath) {
+        await writeTextFile(filePath, jsonData)
+        showMessage('success', '数据导出成功！')
+      }
+    } catch (e) {
+      console.error('Export failed:', e)
+      showMessage('error', '导出失败: ' + (e instanceof Error ? e.message : String(e)))
+    }
+    setIsLoading(false)
+  }
+
+  // 导入数据
+  const handleImport = async () => {
+    setIsLoading(true)
+    try {
+      const filePath = await openDialog({
+        filters: [{
+          name: 'JSON',
+          extensions: ['json']
+        }],
+        multiple: false
+      })
+      
+      if (filePath && typeof filePath === 'string') {
+        const jsonData = await readTextFile(filePath)
+        const result = await dbOperations.importJSON(jsonData)
+        showMessage('success', `导入成功！共导入 ${result.notes} 条笔记，${result.messages} 条消息`)
+        loadDatabaseInfo()
+      }
+    } catch (e) {
+      console.error('Import failed:', e)
+      showMessage('error', '导入失败: ' + (e instanceof Error ? e.message : String(e)))
+    }
+    setIsLoading(false)
+  }
+
+  // 更改数据库存储位置
+  const handleChangeLocation = async () => {
+    setIsLoading(true)
+    try {
+      console.log('Opening directory dialog...')
+      // 让用户选择目录
+      const selectedDir = await openDialog({
+        directory: true,
+        multiple: false,
+        title: '选择数据库存储位置'
+      })
+      
+      console.log('Selected directory:', selectedDir)
+      
+      if (selectedDir && typeof selectedDir === 'string') {
+        console.log('Calling changeLocation with:', selectedDir)
+        const newPath = await dbOperations.changeLocation(selectedDir)
+        console.log('New path:', newPath)
+        showMessage('success', `✅ 存储位置已更改为:\n${newPath}\n\n请重启应用以使更改生效！`)
+        loadDatabaseInfo()
+      } else {
+        console.log('No directory selected or cancelled')
+      }
+    } catch (e) {
+      console.error('Change location failed:', e)
+      showMessage('error', '更改位置失败: ' + (e instanceof Error ? e.message : String(e)))
+    }
+    setIsLoading(false)
+  }
+
+  // 在文件管理器中打开数据库目录
+  const handleOpenInExplorer = async () => {
+    try {
+      if (dbInfo?.path) {
+        await revealItemInDir(dbInfo.path)
+      }
+    } catch (e) {
+      console.error('Open in explorer failed:', e)
+      showMessage('error', '打开失败: ' + (e instanceof Error ? e.message : String(e)))
     }
   }
 
@@ -91,6 +215,19 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {/* 操作消息提示 */}
+        {operationMessage && (
+          <div className={`mx-6 mt-4 px-4 py-2 rounded-lg text-sm whitespace-pre-line ${
+            operationMessage.type === 'success' 
+              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+              : operationMessage.type === 'warning'
+              ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+              : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+          }`}>
+            {operationMessage.text}
+          </div>
+        )}
 
         {/* 内容 */}
         <div className="px-6 py-4 space-y-6">
@@ -157,6 +294,78 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             </div>
           </div>
 
+          {/* 数据管理区域 */}
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              数据管理
+            </h3>
+            
+            {/* 数据库信息 */}
+            {dbInfo && (
+              <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <HardDrive className="h-4 w-4 text-gray-400" />
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      SQLite 数据库
+                      {dbInfo.is_custom && (
+                        <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px]">
+                          自定义位置
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleOpenInExplorer}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                    title="在文件管理器中打开"
+                  >
+                    <FolderOpen className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate" title={dbInfo.path}>{dbInfo.path}</span>
+                  </div>
+                  <div>大小: {dbInfo.size_formatted}</div>
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              {/* 更改存储位置 */}
+              <button
+                onClick={handleChangeLocation}
+                disabled={isLoading}
+                className="w-full px-4 py-2.5 text-sm text-left text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg flex items-center gap-3 transition-colors disabled:opacity-50"
+              >
+                <Settings2 className="h-4 w-4" />
+                更改存储位置
+              </button>
+
+              {/* 导出数据 */}
+              <button
+                onClick={handleExport}
+                disabled={isLoading}
+                className="w-full px-4 py-2.5 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.06] rounded-lg flex items-center gap-3 transition-colors disabled:opacity-50"
+              >
+                <Download className="h-4 w-4 text-gray-400" />
+                导出数据（JSON）
+              </button>
+
+              {/* 导入数据 */}
+              <button
+                onClick={handleImport}
+                disabled={isLoading}
+                className="w-full px-4 py-2.5 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.06] rounded-lg flex items-center gap-3 transition-colors disabled:opacity-50"
+              >
+                <Upload className="h-4 w-4 text-gray-400" />
+                导入数据（JSON）
+              </button>
+            </div>
+          </div>
+
           {/* 提醒通知设置 */}
           <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">
@@ -220,7 +429,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               关于
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              JD Notes v1.0.0
+              JD Notes v1.1.0 (SQLite)
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
               一个简洁高效的本地笔记应用

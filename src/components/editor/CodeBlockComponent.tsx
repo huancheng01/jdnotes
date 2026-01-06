@@ -1,7 +1,8 @@
-import { NodeViewWrapper, NodeViewProps } from '@tiptap/react'
+import { NodeViewWrapper } from '@tiptap/react'
+import type { NodeViewProps } from '@tiptap/react'
 import { Copy, Check } from 'lucide-react'
 import { useState, useCallback, useMemo } from 'react'
-import CodeMirror from '@uiw/react-codemirror'
+import CodeMirror, { type Extension } from '@uiw/react-codemirror'
 import { tokyoNight } from '@uiw/codemirror-theme-tokyo-night'
 import { javascript } from '@codemirror/lang-javascript'
 import { python } from '@codemirror/lang-python'
@@ -13,7 +14,6 @@ import { java } from '@codemirror/lang-java'
 import { cpp } from '@codemirror/lang-cpp'
 import { rust } from '@codemirror/lang-rust'
 import { go } from '@codemirror/lang-go'
-import { Extension } from '@codemirror/state'
 import { StreamLanguage } from '@codemirror/language'
 import { shell } from '@codemirror/legacy-modes/mode/shell'
 
@@ -107,6 +107,8 @@ export function CodeBlockComponent({
     (value: string) => {
       if (typeof getPos === 'function') {
         const pos = getPos()
+        if (pos === undefined) return
+        
         const tr = editor.state.tr
 
         // 删除旧内容并插入新内容

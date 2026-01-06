@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Clock, Bell, Calendar, X } from 'lucide-react'
 import { useDroppable } from '@dnd-kit/core'
-import { DraggableNote } from './CalendarCell'
 import { isSameDay, formatCalendarTime } from '../../hooks/useCalendar'
 import type { Note } from '../../lib/db'
 

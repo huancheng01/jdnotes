@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Calendar, Grid3X3, Download, Flame } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, Download, Flame } from 'lucide-react'
 import type { CalendarView, DateField } from '../../hooks/useCalendar'
 import { getWeekNumber } from '../../hooks/useCalendar'
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { initializeDefaultNotes, noteOperations, type Note } from './lib/db'
-import { useAutoSave, useNotes, useCalendar } from './hooks'
+import { useAutoSave, useNotes, useCalendar, recoverPendingSaves } from './hooks'
 import { CommandMenu } from './components/modals/CommandMenu'
 import { Sidebar, NoteList, MainContent } from './components/layout'
 import { ThemeProvider } from './contexts/ThemeContext'
@@ -73,9 +73,14 @@ function App() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [toggleChat])
 
-  // 初始化默认数据
+  // 初始化默认数据并恢复未保存的数据
   useEffect(() => {
-    initializeDefaultNotes()
+    const initialize = async () => {
+      await initializeDefaultNotes()
+      // 恢复可能因意外关闭而丢失的数据
+      await recoverPendingSaves()
+    }
+    initialize()
   }, [])
 
   // 当前选中的笔记

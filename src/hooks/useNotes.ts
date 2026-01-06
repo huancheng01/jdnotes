@@ -1,13 +1,26 @@
-import { useMemo, useCallback } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { db, noteOperations } from '../lib/db'
+import type { Note } from '../lib/db'
 
 export function useNotes(searchQuery: string, currentView: string) {
-  // 获取所有笔记
-  const allNotes = useLiveQuery(
-    () => db.notes.orderBy('updatedAt').reverse().toArray(),
-    []
-  )
+  // 存储所有笔记的状态
+  const [allNotes, setAllNotes] = useState<Note[]>([])
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  // 刷新数据
+  const refreshNotes = useCallback(async () => {
+    try {
+      const notes = await db.notes.orderBy('updatedAt').reverse().toArray()
+      setAllNotes(notes)
+    } catch (e) {
+      console.error('Failed to load notes:', e)
+    }
+  }, [])
+
+  // 初始加载和刷新
+  useEffect(() => {
+    refreshNotes()
+  }, [refreshNotes, refreshKey])
 
   // 获取所有标签
   const allTags = useMemo(() => {
@@ -70,29 +83,36 @@ export function useNotes(searchQuery: string, currentView: string) {
     )
   }, [filteredNotes, searchQuery])
 
-  // 操作封装
+  // 操作封装 - 每个操作后自动刷新
   const createNote = useCallback(async () => {
-    return await noteOperations.create()
+    const id = await noteOperations.create()
+    setRefreshKey((k) => k + 1)
+    return id
   }, [])
 
   const deleteNote = useCallback(async (id: number) => {
     await noteOperations.softDelete(id)
+    setRefreshKey((k) => k + 1)
   }, [])
 
   const restoreNote = useCallback(async (id: number) => {
     await noteOperations.restore(id)
+    setRefreshKey((k) => k + 1)
   }, [])
 
   const permanentDeleteNote = useCallback(async (id: number) => {
     await noteOperations.permanentDelete(id)
+    setRefreshKey((k) => k + 1)
   }, [])
 
   const toggleFavorite = useCallback(async (id: number) => {
     await noteOperations.toggleFavorite(id)
+    setRefreshKey((k) => k + 1)
   }, [])
 
   const updateTags = useCallback(async (id: number, tags: string[]) => {
     await noteOperations.updateTags(id, tags)
+    setRefreshKey((k) => k + 1)
   }, [])
 
   return {
@@ -106,5 +126,6 @@ export function useNotes(searchQuery: string, currentView: string) {
     permanentDeleteNote,
     toggleFavorite,
     updateTags,
+    refreshNotes, // 导出刷新方法供外部使用
   }
 }

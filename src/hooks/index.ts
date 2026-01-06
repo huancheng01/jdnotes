@@ -1,5 +1,5 @@
 export { useAIStream, type AIAction, type TemplateType, type AIContext } from './useAIStream'
-export { useAutoSave } from './useAutoSave'
+export { useAutoSave, recoverPendingSaves } from './useAutoSave'
 export { useAutoTitle } from './useAutoTitle'
 export { useExport } from './useExport'
 export { useSettings, getSettings, type Settings } from './useSettings'

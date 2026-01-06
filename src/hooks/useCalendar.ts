@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, noteOperations, formatDateKey, type Note } from '../lib/db'
+import { noteOperations, formatDateKey, type Note } from '../lib/db'
 
 export type CalendarView = 'month' | 'week' | 'day'
 export type DateField = 'createdAt' | 'updatedAt'

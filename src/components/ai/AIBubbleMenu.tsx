@@ -1,4 +1,5 @@
-import { BubbleMenu, Editor } from '@tiptap/react'
+// @ts-expect-error BubbleMenu 在 TipTap v3 的类型定义中可能有问题
+import { BubbleMenu, type Editor } from '@tiptap/react'
 import { Sparkles, FileText, Languages, Square } from 'lucide-react'
 import { useAIStream, type AIAction } from '../../hooks/useAIStream'
 import { useCallback, useState } from 'react'
@@ -53,10 +54,10 @@ export function AIBubbleMenu({ editor }: AIBubbleMenuProps) {
         duration: 100,
         placement: 'top',
       }}
-      shouldShow={({ editor, state }) => {
+      shouldShow={({ editor: e, state }: { editor: Editor; state: { selection: { from: number; to: number } } }) => {
         // 只在有选中文本时显示
         const { from, to } = state.selection
-        return from !== to && !editor.isActive('codeBlock')
+        return from !== to && !e.isActive('codeBlock')
       }}
     >
       <div className="flex items-center gap-1 px-1.5 py-1 bg-white dark:bg-dark-sidebar rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">

@@ -13,10 +13,10 @@ import type { Note } from '../../lib/db'
 
 interface CalendarViewProps {
   onSelectNote: (note: Note) => void
-  onBack: () => void
+  onBack?: () => void
 }
 
-export function CalendarView({ onSelectNote, onBack }: CalendarViewProps) {
+export function CalendarView({ onSelectNote }: CalendarViewProps) {
   const calendar = useCalendar()
   const calendarRef = useRef<HTMLDivElement>(null)
 
