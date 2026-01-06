@@ -3,6 +3,8 @@ import { Star, Eye, PenLine, Sparkles, Bell, X } from 'lucide-react'
 import { Editor } from '../editor'
 import { TagsInput, EmptyState } from '../common'
 import { formatDate } from '../../lib/utils'
+import { toast } from '../../lib/toast'
+import { formatTimeRemaining } from '../calendar/ReminderNotification'
 import type { Note } from '../../lib/db'
 
 interface MainContentProps {
@@ -229,6 +231,9 @@ function ReminderPickerPopup({
   const handleQuickSelect = (minutes: number) => {
     const date = new Date(Date.now() + minutes * 60 * 1000)
     onSetReminder(date)
+    // 显示 toast 提示
+    const remaining = formatTimeRemaining(date)
+    toast.success(`⏰ 将在 ${remaining} 后提醒`)
   }
 
   const handleCustomTime = () => {
@@ -241,6 +246,9 @@ function ReminderPickerPopup({
     }
     onSetReminder(date)
     setSelectedTime('')
+    // 显示 toast 提示
+    const remaining = formatTimeRemaining(date)
+    toast.success(`⏰ 将在 ${remaining} 后提醒`)
   }
 
   return (

@@ -46,22 +46,6 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            // 笔记操作
-            commands::create_note,
-            commands::get_notes,
-            commands::get_note_by_id,
-            commands::update_note,
-            commands::soft_delete_note,
-            commands::restore_note,
-            commands::hard_delete_note,
-            commands::toggle_favorite,
-            commands::update_note_tags,
-            commands::update_note_reminder,
-            commands::get_all_tags,
-            // 聊天消息操作
-            commands::add_chat_message,
-            commands::get_chat_messages,
-            commands::delete_chat_messages,
             // 数据库管理
             commands::get_database_path,
             commands::get_database_url,

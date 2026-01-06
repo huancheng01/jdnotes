@@ -1,9 +1,13 @@
-import { useState, useMemo, useCallback } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { noteOperations, formatDateKey, type Note } from '../lib/db'
 
 export type CalendarView = 'month' | 'week' | 'day'
 export type DateField = 'createdAt' | 'updatedAt'
+
+// 带类型标记的提醒
+export interface ReminderWithType extends Note {
+  reminderType: 'upcoming' | 'due'  // 'upcoming' = 提前提醒, 'due' = 到时提醒
+}
 
 export interface UseCalendarReturn {
   currentDate: Date
@@ -27,7 +31,10 @@ export interface UseCalendarReturn {
   // 提醒相关
   setNoteReminder: (noteId: number, reminderDate: Date) => Promise<void>
   clearNoteReminder: (noteId: number) => Promise<void>
-  upcomingReminders: Note[] | undefined
+  upcomingReminders: ReminderWithType[]  // 包含类型标记的提醒列表
+  // 刷新方法
+  refreshNotes: () => Promise<void>
+  refreshReminders: () => Promise<void>
 }
 
 export function useCalendar(): UseCalendarReturn {
@@ -36,6 +43,11 @@ export function useCalendar(): UseCalendarReturn {
   const [dateField, setDateField] = useState<DateField>('createdAt')
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showHeatmap, setShowHeatmap] = useState(false)
+  const [notes, setNotes] = useState<Note[]>([])
+  const [upcomingReminders, setUpcomingReminders] = useState<ReminderWithType[]>([])
+  
+  // 精确定时器引用
+  const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
 
   // 计算日期范围
   const dateRange = useMemo(() => {
@@ -72,25 +84,116 @@ export function useCalendar(): UseCalendarReturn {
     return { start, end }
   }, [currentDate, view])
 
-  // 实时查询笔记
-  const notes = useLiveQuery(
-    async () => {
-      return await noteOperations.getByDateRange(
+  // 刷新笔记数据
+  const refreshNotes = useCallback(async () => {
+    try {
+      const data = await noteOperations.getByDateRange(
         dateRange.start,
         dateRange.end,
         dateField
       )
-    },
-    [dateRange.start.getTime(), dateRange.end.getTime(), dateField]
-  )
+      setNotes(data)
+    } catch (error) {
+      console.error('Failed to load calendar notes:', error)
+    }
+  }, [dateRange.start, dateRange.end, dateField])
 
-  // 查询即将到期的提醒（30分钟内）
-  const upcomingReminders = useLiveQuery(
-    async () => {
-      return await noteOperations.getUpcomingReminders(30)
-    },
-    []
-  )
+  // 刷新提醒数据：同时获取"提前10分钟"和"到时间"的提醒
+  const refreshReminders = useCallback(async () => {
+    try {
+      // 获取提前 10 分钟的提醒（从现在开始的 0-10 分钟内到期的）
+      const upcoming = await noteOperations.getUpcomingReminders(10, 0)
+      // 获取已到期的提醒（过去 2 分钟内到期的，避免错过）
+      const due = await noteOperations.getDueReminders(2)
+      
+      // 合并并标记类型
+      const upcomingWithType: ReminderWithType[] = upcoming.map(note => ({
+        ...note,
+        reminderType: 'upcoming' as const
+      }))
+      
+      const dueWithType: ReminderWithType[] = due.map(note => ({
+        ...note,
+        reminderType: 'due' as const
+      }))
+      
+      // 合并去重（同一个笔记可能同时在两个列表中）
+      const allReminders = [...dueWithType, ...upcomingWithType]
+      const uniqueReminders = allReminders.filter((reminder, index, self) =>
+        index === self.findIndex(r => r.id === reminder.id)
+      )
+      
+      setUpcomingReminders(uniqueReminders)
+    } catch (error) {
+      console.error('Failed to load reminders:', error)
+    }
+  }, [])
+
+  // 设置精确定时器：为每个提醒设置精确到时间点的触发器
+  const setupPreciseTimers = useCallback(async () => {
+    // 清除所有现有定时器
+    timersRef.current.forEach((timer) => clearTimeout(timer))
+    timersRef.current.clear()
+
+    try {
+      // 获取所有有提醒的笔记
+      const notesWithReminders = await noteOperations.getNotesWithReminders()
+      const now = Date.now()
+
+      notesWithReminders.forEach((note) => {
+        if (!note.reminderDate) return
+
+        const reminderTime = new Date(note.reminderDate).getTime()
+        
+        // 提前 10 分钟提醒的时间点
+        const upcomingTime = reminderTime - 10 * 60 * 1000
+        
+        // 设置"提前提醒"定时器（如果还没到提前提醒时间）
+        if (upcomingTime > now) {
+          const upcomingDelay = upcomingTime - now
+          const upcomingTimer = setTimeout(() => {
+            refreshReminders()
+          }, upcomingDelay)
+          timersRef.current.set(note.id * 2, upcomingTimer)  // 使用 id*2 作为 upcoming 的 key
+        }
+        
+        // 设置"到时提醒"定时器（如果还没到提醒时间）
+        if (reminderTime > now) {
+          const dueDelay = reminderTime - now
+          const dueTimer = setTimeout(() => {
+            refreshReminders()
+          }, dueDelay)
+          timersRef.current.set(note.id * 2 + 1, dueTimer)  // 使用 id*2+1 作为 due 的 key
+        }
+      })
+    } catch (error) {
+      console.error('Failed to setup precise timers:', error)
+    }
+  }, [refreshReminders])
+
+  // 依赖变化时刷新笔记
+  useEffect(() => {
+    refreshNotes()
+  }, [refreshNotes])
+
+  // 初始化：设置精确定时器 + 轮询作为保底
+  useEffect(() => {
+    refreshReminders()
+    setupPreciseTimers()
+    
+    // 每 30 秒轮询一次作为保底机制（防止定时器失效或新增提醒）
+    const interval = setInterval(() => {
+      refreshReminders()
+      setupPreciseTimers()
+    }, 30000)
+    
+    return () => {
+      clearInterval(interval)
+      // 清除所有精确定时器
+      timersRef.current.forEach((timer) => clearTimeout(timer))
+      timersRef.current.clear()
+    }
+  }, [refreshReminders, setupPreciseTimers])
 
   // 计算日期分布
   const distribution = useMemo(() => {
@@ -164,17 +267,25 @@ export function useCalendar(): UseCalendarReturn {
     )
 
     await noteOperations.updateCreatedAt(noteId, newDate)
-  }, [])
+    // 更新后刷新笔记列表
+    await refreshNotes()
+  }, [refreshNotes])
 
   // 设置笔记提醒
   const setNoteReminder = useCallback(async (noteId: number, reminderDate: Date) => {
     await noteOperations.setReminder(noteId, reminderDate)
-  }, [])
+    // 更新后刷新提醒列表并重新设置精确定时器
+    await refreshReminders()
+    await setupPreciseTimers()
+  }, [refreshReminders, setupPreciseTimers])
 
   // 清除笔记提醒
   const clearNoteReminder = useCallback(async (noteId: number) => {
     await noteOperations.clearReminder(noteId)
-  }, [])
+    // 更新后刷新提醒列表并重新设置精确定时器
+    await refreshReminders()
+    await setupPreciseTimers()
+  }, [refreshReminders, setupPreciseTimers])
 
   return {
     currentDate,
@@ -197,6 +308,8 @@ export function useCalendar(): UseCalendarReturn {
     setNoteReminder,
     clearNoteReminder,
     upcomingReminders,
+    refreshNotes,
+    refreshReminders,
   }
 }
 

@@ -1,6 +1,11 @@
+//! 数据模型定义
+//!
+//! 说明：大部分数据操作在前端通过 tauri-plugin-sql 执行
+//! 这里的模型主要用于导入导出功能
+
 use serde::{Deserialize, Serialize};
 
-/// 笔记数据模型
+/// 笔记数据模型（用于导入导出）
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Note {
     pub id: Option<i64>,
@@ -15,7 +20,7 @@ pub struct Note {
     pub reminder_enabled: i32,
 }
 
-/// 聊天消息数据模型
+/// 聊天消息数据模型（用于导入导出）
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatMessage {
     pub id: Option<i64>,
@@ -23,26 +28,6 @@ pub struct ChatMessage {
     pub role: String,
     pub content: String,
     pub timestamp: String,
-}
-
-/// 笔记过滤器
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NoteFilter {
-    pub search_query: Option<String>,
-    pub view: String,  // "inbox" | "favorites" | "trash" | "tag-xxx" | "calendar"
-    pub tag: Option<String>,
-}
-
-/// 笔记更新数据
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NoteUpdate {
-    pub title: Option<String>,
-    pub content: Option<String>,
-    pub tags: Option<Vec<String>>,
-    pub is_favorite: Option<i32>,
-    pub is_deleted: Option<i32>,
-    pub reminder_date: Option<String>,
-    pub reminder_enabled: Option<i32>,
 }
 
 /// 数据导出结构

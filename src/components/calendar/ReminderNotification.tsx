@@ -1,11 +1,40 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Bell, X, ExternalLink } from 'lucide-react'
-import { 
-  isPermissionGranted, 
-  requestPermission, 
-  sendNotification 
+import { Bell, Clock, X, ExternalLink } from 'lucide-react'
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification
 } from '@tauri-apps/plugin-notification'
-import type { Note } from '../../lib/db'
+import type { ReminderWithType } from '../../hooks/useCalendar'
+
+// 格式化剩余时间
+export function formatTimeRemaining(targetDate: Date): string {
+  const now = Date.now()
+  const target = new Date(targetDate).getTime()
+  const diff = target - now
+
+  if (diff <= 0) return '已到时间'
+
+  const minutes = Math.ceil(diff / (1000 * 60))
+  
+  if (minutes < 1) return '不到 1 分钟'
+  if (minutes === 1) return '1 分钟'
+  if (minutes < 60) return `${minutes} 分钟`
+  
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  
+  if (hours < 24) {
+    if (remainingMinutes === 0) return `${hours} 小时`
+    return `${hours} 小时 ${remainingMinutes} 分钟`
+  }
+  
+  const days = Math.floor(hours / 24)
+  const remainingHours = hours % 24
+  
+  if (remainingHours === 0) return `${days} 天`
+  return `${days} 天 ${remainingHours} 小时`
+}
 
 // 发送系统通知
 async function sendSystemNotification(title: string, body: string): Promise<boolean> {
@@ -26,8 +55,8 @@ async function sendSystemNotification(title: string, body: string): Promise<bool
 }
 
 interface ReminderNotificationProps {
-  reminders: Note[]
-  onSelectNote: (note: Note) => void
+  reminders: ReminderWithType[]
+  onSelectNote: (note: ReminderWithType) => void
   onDismiss: (noteId: number) => void
 }
 
@@ -36,8 +65,9 @@ export function ReminderNotification({
   onSelectNote,
   onDismiss,
 }: ReminderNotificationProps) {
-  const [visibleReminders, setVisibleReminders] = useState<Note[]>([])
-  const [notifiedIds, setNotifiedIds] = useState<Set<number>>(new Set())
+  const [visibleReminders, setVisibleReminders] = useState<ReminderWithType[]>([])
+  // 记录已通知的笔记 ID 和类型，避免同一类型重复通知
+  const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set())
 
   // 初始化时请求通知权限
   useEffect(() => {
@@ -56,22 +86,34 @@ export function ReminderNotification({
 
   // 检查新的提醒并显示通知
   useEffect(() => {
-    const newReminders = reminders.filter((r) => !notifiedIds.has(r.id))
+    // 用 id + type 组合作为唯一标识，避免同一笔记的同一类型重复通知
+    const newReminders = reminders.filter((r) => !notifiedIds.has(`${r.id}-${r.reminderType}`))
 
     if (newReminders.length > 0) {
-      // 更新已通知的 ID
+      // 更新已通知的 ID + 类型
       setNotifiedIds((prev) => {
         const next = new Set(prev)
-        newReminders.forEach((r) => next.add(r.id))
+        newReminders.forEach((r) => next.add(`${r.id}-${r.reminderType}`))
         return next
       })
 
-      // 添加到可见提醒列表
-      setVisibleReminders((prev) => [...prev, ...newReminders])
+      // 添加到可见提醒列表（去除已存在的同 ID 提醒，用新类型替换）
+      setVisibleReminders((prev) => {
+        const filtered = prev.filter(p => !newReminders.some(n => n.id === p.id))
+        return [...filtered, ...newReminders]
+      })
 
       // 发送系统通知
       newReminders.forEach((note) => {
-        sendSystemNotification('笔记提醒', note.title || '无标题笔记')
+        const title = note.title || '无标题笔记'
+        let message: string
+        if (note.reminderType === 'due') {
+          message = `⏰ 时间到了：${title}`
+        } else {
+          const remaining = note.reminderDate ? formatTimeRemaining(note.reminderDate) : ''
+          message = `⏳ 还有 ${remaining}：${title}`
+        }
+        sendSystemNotification('JDNotes提醒您', message)
       })
     }
   }, [reminders, notifiedIds])
@@ -109,16 +151,30 @@ export function ReminderNotification({
           className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-black/[0.06] dark:border-white/[0.06] p-4 animate-slide-in"
         >
           <div className="flex items-start gap-3">
-            {/* 图标 */}
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
-              <Bell className="h-5 w-5 text-amber-600 dark:text-amber-400" strokeWidth={1.5} />
+            {/* 图标 - 根据类型显示不同颜色 */}
+            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+              note.reminderType === 'due'
+                ? 'bg-red-100 dark:bg-red-500/20'
+                : 'bg-amber-100 dark:bg-amber-500/20'
+            }`}>
+              {note.reminderType === 'due' ? (
+                <Bell className="h-5 w-5 text-red-600 dark:text-red-400" strokeWidth={1.5} />
+              ) : (
+                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" strokeWidth={1.5} />
+              )}
             </div>
 
             {/* 内容 */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                  提醒
+                <span className={`text-[11px] font-medium tracking-wider ${
+                  note.reminderType === 'due'
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-amber-600 dark:text-amber-400'
+                }`}>
+                  {note.reminderType === 'due'
+                    ? '⏰ 时间到了'
+                    : `⏳ 还有 ${note.reminderDate ? formatTimeRemaining(note.reminderDate) : ''}`}
                 </span>
                 <button
                   onClick={() => handleDismiss(note.id)}

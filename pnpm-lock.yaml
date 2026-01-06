@@ -110,12 +110,6 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      dexie:
-        specifier: ^4.2.1
-        version: 4.2.1
-      dexie-react-hooks:
-        specifier: ^4.2.0
-        version: 4.2.0(@types/react@19.2.7)(dexie@4.2.1)(react@19.2.3)
       html2canvas:
         specifier: ^1.4.1
         version: 1.4.1
@@ -1658,16 +1652,6 @@ packages:
 
   devlop@1.1.0:
     resolution: {integrity: sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==}
-
-  dexie-react-hooks@4.2.0:
-    resolution: {integrity: sha512-u7KqTX9JpBQK8+tEyA9X0yMGXlSCsbm5AU64N6gjvGk/IutYDpLBInMYEAEC83s3qhIvryFS+W+sqLZUBEvePQ==}
-    peerDependencies:
-      '@types/react': '>=16'
-      dexie: '>=4.2.0-alpha.1 <5.0.0'
-      react: '>=16'
-
-  dexie@4.2.1:
-    resolution: {integrity: sha512-Ckej0NS6jxQ4Po3OrSQBFddayRhTCic2DoCAG5zacOfOVB9P2Q5Xc5uL/nVa7ZVs+HdMnvUPzLFCB/JwpB6Csg==}
 
   dompurify@3.3.1:
     resolution: {integrity: sha512-qkdCKzLNtrgPFP1Vo+98FRzJnBRGe4ffyCea9IwHB1fyxPOeNTHpLKYGd4Uk9xvNoH0ZoOjwZxNptyMwqrId1Q==}
@@ -4108,14 +4092,6 @@ snapshots:
   devlop@1.1.0:
     dependencies:
       dequal: 2.0.3
-
-  dexie-react-hooks@4.2.0(@types/react@19.2.7)(dexie@4.2.1)(react@19.2.3):
-    dependencies:
-      '@types/react': 19.2.7
-      dexie: 4.2.1
-      react: 19.2.3
-
-  dexie@4.2.1: {}
 
   dompurify@3.3.1:
     optionalDependencies:

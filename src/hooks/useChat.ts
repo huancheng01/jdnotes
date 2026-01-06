@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, chatOperations, type ChatMessage } from '../lib/db'
+import { chatOperations, type ChatMessage } from '../lib/db'
 import { useAIStream } from './useAIStream'
 
 interface UseChatProps {
@@ -28,12 +27,27 @@ export function useChat({ noteId, noteTitle, noteContent }: UseChatProps) {
     isRetryModeRef.current = isRetryMode
   }, [pendingUserMessage, noteId, isRetryMode])
 
-  // Get messages
-  const messages = useLiveQuery(
-    () => (noteId ? db.chatMessages.where('noteId').equals(noteId).sortBy('timestamp') : []),
-    [noteId],
-    []
-  )
+  // Messages state
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+
+  // Refresh messages from database
+  const refreshMessages = useCallback(async () => {
+    if (noteId) {
+      try {
+        const data = await chatOperations.getByNoteId(noteId)
+        setMessages(data)
+      } catch (error) {
+        console.error('Failed to load chat messages:', error)
+      }
+    } else {
+      setMessages([])
+    }
+  }, [noteId])
+
+  // Load messages when noteId changes
+  useEffect(() => {
+    refreshMessages()
+  }, [refreshMessages])
 
   // Build context prompt
   const buildContextPrompt = useCallback(() => {
@@ -69,6 +83,8 @@ export function useChat({ noteId, noteTitle, noteContent }: UseChatProps) {
       setIsStreamingActive(false)
       setIsRetryMode(false)
       streamTextRef.current = ''
+      // 刷新消息列表
+      await refreshMessages()
     },
     onError: async (error) => {
       const currentNoteId = noteIdRef.current
@@ -87,6 +103,8 @@ export function useChat({ noteId, noteTitle, noteContent }: UseChatProps) {
       setIsStreamingActive(false)
       setIsRetryMode(false)
       streamTextRef.current = ''
+      // 刷新消息列表
+      await refreshMessages()
     },
   })
 
@@ -117,13 +135,19 @@ export function useChat({ noteId, noteTitle, noteContent }: UseChatProps) {
   const handleEdit = useCallback(async (id: number, newContent: string) => {
     if (!noteId) return
 
-    await db.chatMessages
-      .where('noteId')
-      .equals(noteId)
-      .filter((msg) => msg.id > id)
-      .delete()
+    // 获取当前消息列表，删除该消息之后的所有消息
+    const currentMessages = await chatOperations.getByNoteId(noteId)
+    const editedMessage = currentMessages.find(m => m.id === id)
+    if (editedMessage) {
+      // 删除编辑消息之后的所有消息
+      await chatOperations.deleteAfter(noteId, editedMessage.timestamp)
+    }
 
-    await db.chatMessages.update(id, { content: newContent })
+    // 更新消息内容
+    await chatOperations.update(id, newContent)
+    
+    // 刷新消息列表
+    await refreshMessages()
 
     setIsRetryMode(true)
     setIsStreamingActive(true)
@@ -131,11 +155,12 @@ export function useChat({ noteId, noteTitle, noteContent }: UseChatProps) {
     setStreamingContent('')
 
     await startStream('custom', newContent, buildContextPrompt())
-  }, [noteId, startStream, buildContextPrompt])
+  }, [noteId, startStream, buildContextPrompt, refreshMessages])
 
   const handleDelete = useCallback(async (id: number) => {
     await chatOperations.delete(id)
-  }, [])
+    await refreshMessages()
+  }, [refreshMessages])
 
   const handleRetry = useCallback(async (message: ChatMessage) => {
     if (!noteId || !messages) return
@@ -156,7 +181,7 @@ export function useChat({ noteId, noteTitle, noteContent }: UseChatProps) {
     await startStream('custom', userMessage.content, buildContextPrompt())
   }, [noteId, messages, startStream, buildContextPrompt])
 
-  const handleClear = async () => {
+  const handleClear = useCallback(async () => {
     if (isStreaming) {
       stopStream()
     }
@@ -168,7 +193,8 @@ export function useChat({ noteId, noteTitle, noteContent }: UseChatProps) {
     setIsStreamingActive(false)
     setIsRetryMode(false)
     streamTextRef.current = ''
-  }
+    setMessages([])
+  }, [isStreaming, noteId, stopStream])
 
   return {
     input,

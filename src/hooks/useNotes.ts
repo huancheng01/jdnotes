@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { db, noteOperations } from '../lib/db'
-import type { Note } from '../lib/db'
+import { noteOperations, type Note } from '../lib/db'
+import { toast } from '../lib/toast'
 
 export function useNotes(searchQuery: string, currentView: string) {
   // 存储所有笔记的状态
@@ -10,10 +10,11 @@ export function useNotes(searchQuery: string, currentView: string) {
   // 刷新数据
   const refreshNotes = useCallback(async () => {
     try {
-      const notes = await db.notes.orderBy('updatedAt').reverse().toArray()
+      const notes = await noteOperations.getAll()
       setAllNotes(notes)
     } catch (e) {
       console.error('Failed to load notes:', e)
+      toast.error('加载笔记失败，请稍后重试')
     }
   }, [])
 
@@ -85,34 +86,68 @@ export function useNotes(searchQuery: string, currentView: string) {
 
   // 操作封装 - 每个操作后自动刷新
   const createNote = useCallback(async () => {
-    const id = await noteOperations.create()
-    setRefreshKey((k) => k + 1)
-    return id
+    try {
+      const id = await noteOperations.create()
+      setRefreshKey((k) => k + 1)
+      return id
+    } catch (e) {
+      console.error('Failed to create note:', e)
+      toast.error('创建笔记失败')
+      return 0
+    }
   }, [])
 
   const deleteNote = useCallback(async (id: number) => {
-    await noteOperations.softDelete(id)
-    setRefreshKey((k) => k + 1)
+    try {
+      await noteOperations.softDelete(id)
+      setRefreshKey((k) => k + 1)
+      toast.success('已移至废纸篓')
+    } catch (e) {
+      console.error('Failed to delete note:', e)
+      toast.error('删除笔记失败')
+    }
   }, [])
 
   const restoreNote = useCallback(async (id: number) => {
-    await noteOperations.restore(id)
-    setRefreshKey((k) => k + 1)
+    try {
+      await noteOperations.restore(id)
+      setRefreshKey((k) => k + 1)
+      toast.success('笔记已恢复')
+    } catch (e) {
+      console.error('Failed to restore note:', e)
+      toast.error('恢复笔记失败')
+    }
   }, [])
 
   const permanentDeleteNote = useCallback(async (id: number) => {
-    await noteOperations.permanentDelete(id)
-    setRefreshKey((k) => k + 1)
+    try {
+      await noteOperations.permanentDelete(id)
+      setRefreshKey((k) => k + 1)
+      toast.success('笔记已永久删除')
+    } catch (e) {
+      console.error('Failed to permanently delete note:', e)
+      toast.error('删除笔记失败')
+    }
   }, [])
 
   const toggleFavorite = useCallback(async (id: number) => {
-    await noteOperations.toggleFavorite(id)
-    setRefreshKey((k) => k + 1)
+    try {
+      await noteOperations.toggleFavorite(id)
+      setRefreshKey((k) => k + 1)
+    } catch (e) {
+      console.error('Failed to toggle favorite:', e)
+      toast.error('操作失败')
+    }
   }, [])
 
   const updateTags = useCallback(async (id: number, tags: string[]) => {
-    await noteOperations.updateTags(id, tags)
-    setRefreshKey((k) => k + 1)
+    try {
+      await noteOperations.updateTags(id, tags)
+      setRefreshKey((k) => k + 1)
+    } catch (e) {
+      console.error('Failed to update tags:', e)
+      toast.error('更新标签失败')
+    }
   }, [])
 
   return {

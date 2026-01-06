@@ -309,6 +309,15 @@ export const noteOperations = {
     return rows.length > 0 ? rowToNote(rows[0]) : undefined
   },
 
+  // 获取所有笔记（按更新时间倒序）
+  async getAll(): Promise<Note[]> {
+    const db = await getDatabase()
+    const rows = await db.select<NoteRow[]>(
+      'SELECT * FROM notes ORDER BY updated_at DESC'
+    )
+    return rows.map(rowToNote)
+  },
+
   // 更新标签
   async updateTags(id: number, tags: string[]): Promise<void> {
     const db = await getDatabase()
@@ -423,21 +432,42 @@ export const noteOperations = {
     )
   },
 
-  // 获取即将到期的提醒
-  async getUpcomingReminders(withinMinutes: number = 60): Promise<Note[]> {
+  // 获取即将到期的提醒（提前 X 分钟到提前 Y 分钟之间）
+  async getUpcomingReminders(withinMinutes: number = 10, fromMinutes: number = 0): Promise<Note[]> {
     const db = await getDatabase()
     const now = new Date()
-    const future = new Date(now.getTime() + withinMinutes * 60 * 1000)
+    const fromTime = new Date(now.getTime() + fromMinutes * 60 * 1000)
+    const toTime = new Date(now.getTime() + withinMinutes * 60 * 1000)
 
     const rows = await db.select<NoteRow[]>(
-      `SELECT * FROM notes 
-       WHERE reminder_enabled = 1 
-       AND is_deleted = 0 
-       AND reminder_date IS NOT NULL 
-       AND reminder_date >= ? 
+      `SELECT * FROM notes
+       WHERE reminder_enabled = 1
+       AND is_deleted = 0
+       AND reminder_date IS NOT NULL
+       AND reminder_date >= ?
        AND reminder_date <= ?
        ORDER BY reminder_date ASC`,
-      [now.toISOString(), future.toISOString()]
+      [fromTime.toISOString(), toTime.toISOString()]
+    )
+
+    return rows.map(rowToNote)
+  },
+
+  // 获取已到期的提醒（过去 X 分钟内到期的）
+  async getDueReminders(withinMinutes: number = 1): Promise<Note[]> {
+    const db = await getDatabase()
+    const now = new Date()
+    const pastTime = new Date(now.getTime() - withinMinutes * 60 * 1000)
+
+    const rows = await db.select<NoteRow[]>(
+      `SELECT * FROM notes
+       WHERE reminder_enabled = 1
+       AND is_deleted = 0
+       AND reminder_date IS NOT NULL
+       AND reminder_date >= ?
+       AND reminder_date <= ?
+       ORDER BY reminder_date ASC`,
+      [pastTime.toISOString(), now.toISOString()]
     )
 
     return rows.map(rowToNote)
@@ -621,199 +651,4 @@ export const dbOperations = {
     
     return { notes: notesImported, messages: messagesImported }
   },
-}
-
-// ============= 兼容旧 Dexie API 的数据库对象 =============
-// 注意：SQLite 不支持 Dexie 的实时查询，需要手动刷新
-
-export const db = {
-  notes: {
-    // 兼容 useLiveQuery 的查询方法
-    orderBy: (field: string) => ({
-      reverse: () => ({
-        filter: (fn: (note: Note) => boolean) => ({
-          toArray: async (): Promise<Note[]> => {
-            const database = await getDatabase()
-            const column = field === 'updatedAt' ? 'updated_at' : field === 'createdAt' ? 'created_at' : field
-            const rows = await database.select<NoteRow[]>(
-              `SELECT * FROM notes ORDER BY ${column} DESC`
-            )
-            return rows.map(rowToNote).filter(fn)
-          }
-        }),
-        toArray: async (): Promise<Note[]> => {
-          const database = await getDatabase()
-          const column = field === 'updatedAt' ? 'updated_at' : field === 'createdAt' ? 'created_at' : field
-          const rows = await database.select<NoteRow[]>(
-            `SELECT * FROM notes ORDER BY ${column} DESC`
-          )
-          return rows.map(rowToNote)
-        }
-      })
-    }),
-    where: (field: string) => ({
-      equals: (value: number | string) => ({
-        and: (fn: (note: Note) => boolean) => ({
-          sortBy: async (sortField: string): Promise<Note[]> => {
-            const database = await getDatabase()
-            const column = field === 'isDeleted' ? 'is_deleted' : field === 'isFavorite' ? 'is_favorite' : field
-            const rows = await database.select<NoteRow[]>(
-              `SELECT * FROM notes WHERE ${column} = ?`,
-              [value]
-            )
-            return rows.map(rowToNote).filter(fn).sort((a: Note, b: Note) => {
-              const aVal = a[sortField as keyof Note]
-              const bVal = b[sortField as keyof Note]
-              if (aVal instanceof Date && bVal instanceof Date) {
-                return bVal.getTime() - aVal.getTime()
-              }
-              return 0
-            })
-          },
-          toArray: async (): Promise<Note[]> => {
-            const database = await getDatabase()
-            const column = field === 'isDeleted' ? 'is_deleted' : field === 'isFavorite' ? 'is_favorite' : field
-            const rows = await database.select<NoteRow[]>(
-              `SELECT * FROM notes WHERE ${column} = ?`,
-              [value]
-            )
-            return rows.map(rowToNote).filter(fn)
-          }
-        }),
-        toArray: async (): Promise<Note[]> => {
-          const database = await getDatabase()
-          const column = field === 'isDeleted' ? 'is_deleted' : field === 'isFavorite' ? 'is_favorite' : field
-          const rows = await database.select<NoteRow[]>(
-            `SELECT * FROM notes WHERE ${column} = ?`,
-            [value]
-          )
-          return rows.map(rowToNote)
-        }
-      }),
-      anyOf: (values: string[]) => ({
-        and: (fn: (note: Note) => boolean) => ({
-          toArray: async (): Promise<Note[]> => {
-            const database = await getDatabase()
-            // 对于 tags 搜索，需要特殊处理
-            const rows = await database.select<NoteRow[]>('SELECT * FROM notes WHERE is_deleted = 0')
-            return rows.map(rowToNote).filter((note: Note) => {
-              const hasTag = values.some((tag: string) => note.tags.includes(tag))
-              return hasTag && fn(note)
-            })
-          }
-        })
-      }),
-      between: (start: Date, end: Date, includeStart?: boolean, includeEnd?: boolean) => ({
-        and: (fn: (note: Note) => boolean) => ({
-          toArray: async (): Promise<Note[]> => {
-            const database = await getDatabase()
-            const column = field === 'createdAt' ? 'created_at' : field === 'updatedAt' ? 'updated_at' : field
-            const startOp = includeStart ? '>=' : '>'
-            const endOp = includeEnd ? '<=' : '<'
-            const rows = await database.select<NoteRow[]>(
-              `SELECT * FROM notes WHERE ${column} ${startOp} ? AND ${column} ${endOp} ?`,
-              [start.toISOString(), end.toISOString()]
-            )
-            return rows.map(rowToNote).filter(fn)
-          }
-        })
-      })
-    }),
-    get: async (id: number): Promise<Note | undefined> => {
-      return await noteOperations.get(id)
-    },
-    count: async (): Promise<number> => {
-      const database = await getDatabase()
-      const result = await database.select<[{ count: number }]>('SELECT COUNT(*) as count FROM notes')
-      return result[0]?.count || 0
-    },
-    update: async (id: number, data: Partial<Note>): Promise<void> => {
-      const database = await getDatabase()
-      const now = new Date().toISOString()
-      
-      const updates: string[] = ['updated_at = ?']
-      const params: (string | number | null)[] = [now]
-      
-      if (data.title !== undefined) {
-        updates.push('title = ?')
-        params.push(data.title)
-      }
-      if (data.content !== undefined) {
-        updates.push('content = ?')
-        params.push(data.content)
-      }
-      if (data.tags !== undefined) {
-        updates.push('tags = ?')
-        params.push(JSON.stringify(data.tags))
-      }
-      if (data.isFavorite !== undefined) {
-        updates.push('is_favorite = ?')
-        params.push(data.isFavorite)
-      }
-      if (data.isDeleted !== undefined) {
-        updates.push('is_deleted = ?')
-        params.push(data.isDeleted)
-      }
-      if (data.reminderDate !== undefined) {
-        updates.push('reminder_date = ?')
-        params.push(data.reminderDate ? data.reminderDate.toISOString() : null)
-      }
-      if (data.reminderEnabled !== undefined) {
-        updates.push('reminder_enabled = ?')
-        params.push(data.reminderEnabled)
-      }
-      
-      params.push(id)
-      
-      await database.execute(
-        `UPDATE notes SET ${updates.join(', ')} WHERE id = ?`,
-        params
-      )
-    }
-  },
-  chatMessages: {
-    where: (field: string) => ({
-      equals: (value: number) => ({
-        sortBy: async (sortField: string): Promise<ChatMessage[]> => {
-          const database = await getDatabase()
-          const column = field === 'noteId' ? 'note_id' : field
-          const sortColumn = sortField === 'timestamp' ? 'timestamp' : sortField
-          const rows = await database.select<ChatMessageRow[]>(
-            `SELECT * FROM chat_messages WHERE ${column} = ? ORDER BY ${sortColumn} ASC`,
-            [value]
-          )
-          return rows.map(rowToChatMessage)
-        },
-        filter: (fn: (msg: ChatMessage) => boolean) => ({
-          delete: async (): Promise<void> => {
-            const database = await getDatabase()
-            const column = field === 'noteId' ? 'note_id' : field
-            // 先获取要删除的消息
-            const rows = await database.select<ChatMessageRow[]>(
-              `SELECT * FROM chat_messages WHERE ${column} = ?`,
-              [value]
-            )
-            const toDelete = rows.map(rowToChatMessage).filter(fn)
-            // 删除符合条件的消息
-            for (const msg of toDelete) {
-              await database.execute('DELETE FROM chat_messages WHERE id = ?', [msg.id])
-            }
-          }
-        })
-      })
-    }),
-    update: async (id: number, data: Partial<ChatMessage>): Promise<void> => {
-      const database = await getDatabase()
-      if (data.content !== undefined) {
-        await database.execute(
-          'UPDATE chat_messages SET content = ? WHERE id = ?',
-          [data.content, id]
-        )
-      }
-    },
-    delete: async (id: number): Promise<void> => {
-      const database = await getDatabase()
-      await database.execute('DELETE FROM chat_messages WHERE id = ?', [id])
-    }
-  }
 }

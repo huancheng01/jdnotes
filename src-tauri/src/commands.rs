@@ -1,108 +1,12 @@
 use crate::db;
-use crate::models::{ChatMessage, ExportData, Note, NoteFilter, NoteUpdate};
+use crate::models::ExportData;
 
-// ============= 笔记操作 =============
-// 注意：由于使用 tauri-plugin-sql，大部分 SQL 操作在前端直接通过插件执行
-// 这里的命令主要用于需要后端处理的特殊操作
-
-/// 创建新笔记（占位，实际使用前端 SQL 插件）
-#[tauri::command]
-pub async fn create_note(
-    _title: String,
-    _content: String,
-) -> Result<i64, String> {
-    // 实际操作在前端通过 SQL 插件执行
-    Ok(1)
-}
-
-/// 获取所有笔记（带过滤）
-#[tauri::command]
-pub async fn get_notes(_filter: NoteFilter) -> Result<Vec<Note>, String> {
-    // 实际操作在前端通过 SQL 插件执行
-    Ok(vec![])
-}
-
-/// 根据 ID 获取单个笔记
-#[tauri::command]
-pub async fn get_note_by_id(_id: i64) -> Result<Option<Note>, String> {
-    Ok(None)
-}
-
-/// 更新笔记
-#[tauri::command]
-pub async fn update_note(_id: i64, _data: NoteUpdate) -> Result<(), String> {
-    Ok(())
-}
-
-/// 软删除笔记（移到废纸篓）
-#[tauri::command]
-pub async fn soft_delete_note(_id: i64) -> Result<(), String> {
-    Ok(())
-}
-
-/// 恢复已删除的笔记
-#[tauri::command]
-pub async fn restore_note(_id: i64) -> Result<(), String> {
-    Ok(())
-}
-
-/// 永久删除笔记
-#[tauri::command]
-pub async fn hard_delete_note(_id: i64) -> Result<(), String> {
-    Ok(())
-}
-
-/// 切换收藏状态
-#[tauri::command]
-pub async fn toggle_favorite(_id: i64) -> Result<(), String> {
-    Ok(())
-}
-
-/// 更新笔记标签
-#[tauri::command]
-pub async fn update_note_tags(_id: i64, _tags: Vec<String>) -> Result<(), String> {
-    Ok(())
-}
-
-/// 更新笔记提醒
-#[tauri::command]
-pub async fn update_note_reminder(
-    _id: i64,
-    _reminder_date: Option<String>,
-    _reminder_enabled: bool,
-) -> Result<(), String> {
-    Ok(())
-}
-
-/// 获取所有标签
-#[tauri::command]
-pub async fn get_all_tags() -> Result<Vec<String>, String> {
-    Ok(vec![])
-}
-
-// ============= 聊天消息操作 =============
-
-/// 添加聊天消息
-#[tauri::command]
-pub async fn add_chat_message(
-    _note_id: i64,
-    _role: String,
-    _content: String,
-) -> Result<i64, String> {
-    Ok(1)
-}
-
-/// 获取笔记的聊天消息
-#[tauri::command]
-pub async fn get_chat_messages(_note_id: i64) -> Result<Vec<ChatMessage>, String> {
-    Ok(vec![])
-}
-
-/// 删除笔记的所有聊天消息
-#[tauri::command]
-pub async fn delete_chat_messages(_note_id: i64) -> Result<(), String> {
-    Ok(())
-}
+// ============= 架构说明 =============
+// JD Notes 使用 tauri-plugin-sql 插件在前端直接执行 SQL 操作
+// 笔记和聊天消息的 CRUD 操作都在前端 src/lib/db.ts 中实现
+// 后端命令仅用于：
+// 1. 数据库路径管理（获取/更改数据库位置）
+// 2. 数据导入导出
 
 // ============= 数据库路径管理 =============
 

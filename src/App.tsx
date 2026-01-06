@@ -36,6 +36,7 @@ function App() {
     permanentDeleteNote,
     toggleFavorite,
     updateTags,
+    refreshNotes,
   } = useNotes(searchQuery, currentView)
 
   // 使用 useCalendar 获取提醒相关功能
@@ -44,17 +45,29 @@ function App() {
   // 设置笔记提醒
   const handleSetReminder = useCallback(async (noteId: number, reminderDate: Date) => {
     await noteOperations.setReminder(noteId, reminderDate)
-  }, [])
+    // 刷新笔记列表以更新 activeNote 的提醒状态
+    await refreshNotes()
+    // 刷新提醒列表
+    await calendar.refreshReminders()
+  }, [refreshNotes, calendar])
 
   // 清除笔记提醒
   const handleClearReminder = useCallback(async (noteId: number) => {
     await noteOperations.clearReminder(noteId)
-  }, [])
+    // 刷新笔记列表以更新 activeNote 的提醒状态
+    await refreshNotes()
+    // 刷新提醒列表
+    await calendar.refreshReminders()
+  }, [refreshNotes, calendar])
 
   // 提醒通知关闭时清除提醒
   const handleDismissReminder = useCallback(async (noteId: number) => {
     await noteOperations.clearReminder(noteId)
-  }, [])
+    // 刷新笔记列表以更新工具栏的提醒按钮状态
+    await refreshNotes()
+    // 刷新提醒列表
+    await calendar.refreshReminders()
+  }, [refreshNotes, calendar])
 
   // 切换 AI 聊天侧栏
   const toggleChat = useCallback(() => {

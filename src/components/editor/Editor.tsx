@@ -158,8 +158,7 @@ export function Editor({
 
     const handleUpdate = () => {
       if (!diffState.isActive) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onContentChange((editor.storage as any).markdown.getMarkdown())
+        onContentChange(editor.storage.markdown.getMarkdown())
       }
     }
 
@@ -200,8 +199,7 @@ export function Editor({
     editor.commands.insertContent('\n\n' + contentToInsert)
 
     // 更新内容（以 Markdown 格式保存）
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const newContent = (editor.storage as any).markdown.getMarkdown()
+    const newContent = editor.storage.markdown.getMarkdown()
     onContentChange(newContent)
 
     // 通知插入完成
